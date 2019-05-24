@@ -25,11 +25,15 @@ void display(struct Exp *,int);
 %token AND OR NOT RETURN IF ELSE WHILE/*用bison对该文件编译时，带参数-d，生成的exp.tab.h中
                                       给这些单词进行编码，可在lex.l中包含exp.tab.h使用这些单词种类码*/
 
+%right '='
+%left OR
+%left AND
+%left CMP
 %left '+' '-'
 %left '*' '/'
-// %left UMINUS
-%nonassoc UMINUS
+%right UMINUS NOT
 
+%nonassoc ELSE
 %%
 input:
     | input line
