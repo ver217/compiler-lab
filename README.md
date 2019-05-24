@@ -1,10 +1,10 @@
 Specifier -> TYPE
 
-LVal -> ID
+//LVal -> ID
+Var -> ID
 VarDec -> ID | ID = Exp
 VarDecList -> VarDec | VarDec , VarDecList
 VarDecStmt -> Specifier VarDecList ;
-VarDecStmtList -> VarDecStmt VarDecStmtList | E
 
 ParamDec -> Specifier ID
 ParmaList -> ParamDec | ParamDec , ParamList
@@ -43,12 +43,11 @@ Stmt -> Exp ;
     | if (Exp) Stmt else Stmt
     | while (Exp) Stmt
 
-StmtList -> Stmt StmtList | E
-
+BloclInnerStmtList -> VarDecStmt BlockInnerStmtList | Stmt BlockInnerStmtList | E
 BlockStmt -> { VarDecStmtList StmtList }
 
 FuncDef -> Specifier FuncDec BlockStmt
 
-BareStmt -> VarDecStmt | FuncDecStmt | FuncDef | Lval = Exp
-BareStmtList -> BareStmt BareStmtList | E
-program -> BareStmtList
+ExtStmt -> VarDecStmt | FuncDecStmt | FuncDef | Lval = Exp
+ExtStmtList -> ExtStmt ExtStmtList | E
+program -> ExtStmtList

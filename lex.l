@@ -1,5 +1,5 @@
 %option yylineno
-/* %option debug */
+/*%option debug */
 %{
 #include <string.h>
 #include "def.h"
