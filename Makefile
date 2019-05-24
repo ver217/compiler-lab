@@ -1,9 +1,9 @@
 .PHONY: all clean
 
-all: lex.l exp.y display.c
-	bison -d -v exp.y
+all: lex.l parser.y ast.c
+	bison -d -v parser.y
 	flex lex.l
-	gcc exp.tab.c lex.yy.c display.c Node.c -Lfl -Ly
+	gcc parser.tab.c lex.yy.c ast.c -Lfl -Ly
 
 clean:
-	rm -f exp.tab.c exp.tab.h exp.output lex.yy.c a.out
+	rm -f parser.tab.c parser.tab.h parser.output lex.yy.c a.out
