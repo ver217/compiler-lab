@@ -4,19 +4,21 @@
 #include <math.h>
 #include <string.h>
 #include "def.h"
+#include "util.h"
 extern int yylineno;
 extern char *yytext;
 extern FILE *yyin;
+extern int yylex();
 void yyerror(const char* fmt, ...);
 void display(struct node *,int);
 %}
 
 %union {
-	int type_int;
-	float type_float;
-	char type_id[32];
+    int type_int;
+    float type_float;
+    char type_id[32];
     char type_char;
-	struct node *ptr;
+    struct node *ptr;
 };
 
 //  %type 定义非终结符的语义值类型
@@ -54,7 +56,7 @@ ExtDef:   Specifier ExtDecList ';'   {$$=mknode(EXT_VAR_DEF,$1,$2,NULL,yylineno)
          |Specifier FuncDec CompSt    {$$=mknode(FUNC_DEF,$1,$2,$3,yylineno);}         //该结点对应一个函数定义
          | error ';'   {$$=NULL; }
          ;
-Specifier:  TYPE    {$$=mknode(TYPE,NULL,NULL,NULL,yylineno);strcpy($$->type_id,$1);$$->type=!strcmp($1,"int")?INT:(!strcmp($1, "float")?FLOAT:CHAR);}   
+Specifier:  TYPE    {$$=mknode(TYPE,NULL,NULL,NULL,yylineno);strcpy($$->type_id,$1);$$->type=resolve_type($1);}   
            ;      
 ExtDecList:  VarDec      {$$=$1;}       /*每一个EXT_DECLIST的结点，其第一棵子树对应一个变量名(ID类型的结点),第二棵子树对应剩下的外部变量名*/
            | VarDec ',' ExtDecList {$$=mknode(EXT_DEC_LIST,$1,$3,NULL,yylineno);}
@@ -62,7 +64,7 @@ ExtDecList:  VarDec      {$$=$1;}       /*每一个EXT_DECLIST的结点，其第
 VarDec:  ID          {$$=mknode(ID,NULL,NULL,NULL,yylineno);strcpy($$->type_id,$1);}   //ID结点，标识符符号串存放结点的type_id
          ;
 FuncDec: ID '(' VarList ')'   {$$=mknode(FUNC_DEC,$3,NULL,NULL,yylineno);strcpy($$->type_id,$1);}//函数名存放在$$->type_id
-		|ID '('  ')'   {$$=mknode(FUNC_DEC,NULL,NULL,NULL,yylineno);strcpy($$->type_id,$1);}//函数名存放在$$->type_id
+        |ID '('  ')'   {$$=mknode(FUNC_DEC,NULL,NULL,NULL,yylineno);strcpy($$->type_id,$1);}//函数名存放在$$->type_id
 
         ;  
 VarList: ParamDec  {$$=mknode(PARAM_LIST,$1,NULL,NULL,yylineno);}
@@ -91,11 +93,11 @@ Def:    Specifier DecList ';' {$$=mknode(VAR_DEF,$1,$2,NULL,yylineno);}
         ;
 DecList: Dec  {$$=mknode(DEC_LIST,$1,NULL,NULL,yylineno);}
        | Dec ',' DecList  {$$=mknode(DEC_LIST,$1,$3,NULL,yylineno);}
-	   ;
+       ;
 Dec:     VarDec  {$$=$1;}
        | VarDec ASSIGNOP Exp  {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}
        ;
-Exp:   Exp ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符
+Exp:   VarDec ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符
       | Exp AND Exp   {$$=mknode(AND,$1,$3,NULL,yylineno);strcpy($$->type_id,"AND");}
       | Exp OR Exp    {$$=mknode(OR,$1,$3,NULL,yylineno);strcpy($$->type_id,"OR");}
       | Exp CMP Exp {$$=mknode(CMP,$1,$3,NULL,yylineno);strcpy($$->type_id,$2);}  //词法分析关系运算符号自身值保存在$2中
@@ -120,12 +122,12 @@ Args:    Exp ',' Args    {$$=mknode(ARGS,$1,$3,NULL,yylineno);}
 %%
 
 int main(int argc, char *argv[]){
-	yyin=fopen(argv[1],"r");
-	if (!yyin) return;
-	yylineno=1;
-	yyparse();
-	return 0;
-	}
+    yyin=fopen(argv[1],"r");
+    if (!yyin) return 0;
+    yylineno=1;
+    yyparse();
+    return 0;
+    }
 
 #include<stdarg.h>
 void yyerror(const char* fmt, ...)
