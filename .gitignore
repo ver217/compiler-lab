@@ -3,3 +3,4 @@ a.out
 *.tab.*
 *.output
 *.yy.c
+test.c

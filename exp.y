@@ -1,7 +1,7 @@
 %{
-#include "stdio.h"
-#include "math.h"
-#include "string.h"
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
 #include "Node.h"
 extern char *yytext;
 extern FILE *yyin;
@@ -9,53 +9,54 @@ void display(struct Exp *,int);
 %}
 
 %union {
-	int type_int;
-	char type_id[32];
-	float type_float;
-	char type_char;
-	struct Exp *pExp;
+    int type_int;
+    char type_id[32];
+    float type_float;
+    char type_char;
+    struct Exp *pExp;
 };
 
 %type  <pExp> line exp       /*指定line和exp的语义值是结点指针pExp*/
 %token <type_int> INT        /*指定INT的语义值是type_int，有词法分析得到的数值*/
-%token <type_id> ID          /*指定ID的语义值是type_id，有词法分析得到的标识符字符串*/
+%token <type_id> ID TYPE CMP          /*指定ID的语义值是type_id，有词法分析得到的标识符字符串*/
 %token <type_float> FLOAT
 %token <type_char> CHAR
 
-%token LP RP  PLUS MINUS STAR DIV ASSIGNOP RELOP AND OR NOT TYPE RETURN IF ELSE WHILE SEMI COMMA LC RC       /*用bison对该文件编译时，带参数-d，生成的exp.tab.h中
+%token AND OR NOT RETURN IF ELSE WHILE/*用bison对该文件编译时，带参数-d，生成的exp.tab.h中
                                       给这些单词进行编码，可在lex.l中包含exp.tab.h使用这些单词种类码*/
 
-%left PLUS MINUS
-%left STAR DIV
-%left UMINUS
+%left '+' '-'
+%left '*' '/'
+// %left UMINUS
+%nonassoc UMINUS
 
 %%
 input:
-	 | input line
-	 ;
-line : '\n'    { ;}
-	 | exp '\n' { display($1,0);}                  /*显示语法树*/
-	 | error '\n' { printf("exp error!\n");}       /*一旦有语法错误，跳过这行*/
-	 ;
-exp	 : INT {$$=(PEXP)malloc(sizeof(struct Exp)); $$->kind=INT_NODE;$$->type_int=$1;}
-	 | ID  {$$=(PEXP)malloc(sizeof(struct Exp)); $$->kind=ID_NODE;strcpy($$->type_id,$1);}
-	 | exp PLUS exp {$$=(PEXP)malloc(sizeof(struct Exp)); $$->kind=PLUS_NODE;  $$->ptr.pExp1=$1;$$->ptr.pExp2=$3;}
-	 | exp MINUS exp {$$=(PEXP)malloc(sizeof(struct Exp)); $$->kind=MINUS_NODE;  $$->ptr.pExp1=$1;$$->ptr.pExp2=$3;}
-	 | exp STAR exp {$$=(PEXP)malloc(sizeof(struct Exp)); $$->kind=STAR_NODE;  $$->ptr.pExp1=$1;$$->ptr.pExp2=$3;}
-	 | exp DIV exp {$$=(PEXP)malloc(sizeof(struct Exp)); $$->kind=DIV_NODE;  $$->ptr.pExp1=$1;$$->ptr.pExp2=$3;}
-	 | LP exp RP   {$$=(PEXP)$2;}
-     | MINUS exp   %prec UMINUS  {$$=(PEXP)malloc(sizeof(struct Exp)); $$->kind=UMINUS_NODE;  $$->ptr.pExp1=$2;}  
-	;
-	/*以上exp的规则的语义动作生成抽象语法树*/
+    | input line
+     ;
+line: '\n'    { ;}
+    | exp '\n' { display($1,0);}                  /*显示语法树*/
+    | error '\n' { printf("exp error!\n");}       /*一旦有语法错误，跳过这行*/
+    ;
+exp: INT {$$=new_node(INT_NODE, NULL, NULL); $$->type_int=$1;}
+   | TYPE ID {$$=new_node(ID_NODE, NULL, NULL); strcpy($$->type_id,$2);}
+   | exp '+' exp {$$=new_node(PLUS_NODE, $1, $3);}
+   | exp '-' exp {$$=new_node(MINUS_NODE, $1, $3);}
+   | exp '*' exp {$$=new_node(STAR_NODE, $1, $3);}
+   | exp '/' exp {$$=new_node(DIV_NODE, $1, $3);}
+   | '(' exp ')' {$$=(PEXP)$2;}
+   | '-' exp %prec UMINUS {$$=new_node(UMINUS_NODE, $2, NULL);}  
+   ;
+    /*以上exp的规则的语义动作生成抽象语法树*/
 %%
 
 int main(int argc, char *argv[]){
-	yyin=fopen(argv[1],"r");
-	if (!yyin) return;
-	yyparse();
-	return 0;
-	}
-	
+    yyin=fopen(argv[1],"r");
+    if (!yyin) return;
+    yyparse();
+    return 0;
+    }
+    
 yyerror(char *s){
    printf("%s   %s \n",s,yytext);
    

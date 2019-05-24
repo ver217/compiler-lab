@@ -1,4 +1,13 @@
-enum node_kind {ID_NODE, INT_NODE, LPRP_NODE, PLUS_NODE, MINUS_NODE, STAR_NODE, DIV_NODE, UMINUS_NODE};
+enum node_kind {
+    ID_NODE,
+    INT_NODE,
+    LPRP_NODE,
+    PLUS_NODE,
+    MINUS_NODE,
+    STAR_NODE,
+    DIV_NODE,
+    UMINUS_NODE
+};
 
 typedef struct Exp {
     enum node_kind kind;
@@ -12,3 +21,5 @@ typedef struct Exp {
     };
 } *PEXP;
 
+
+PEXP new_node(enum node_kind kind, PEXP l_child, PEXP r_child);
