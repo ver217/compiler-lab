@@ -1,10 +1,40 @@
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
-#include "stdarg.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
 #include "parser.tab.h"
 
-enum node_kind  { EXT_DEF_LIST, EXT_VAR_DEF, FUNC_DEF, FUNC_DEC, EXT_DEC_LIST, PARAM_LIST, PARAM_DEC,                   VAR_DEF, DEC_LIST, DEF_LIST, COMP_STM, STM_LIST, EXP_STMT, IF_THEN, IF_THEN_ELSE, FUNC_CALL, ARGS, FUNCTION, PARAM, ARG, CALL, LABEL, GOTO, JLT, JLE, JGT, JGE, EQ, NEQ};
+enum node_kind  {
+    EXT_DEF_LIST,
+    EXT_VAR_DEF,
+    FUNC_DEF,
+    FUNC_DEC,
+    EXT_DEC_LIST,
+    PARAM_LIST,
+    PARAM_DEC,
+    VAR_DEF,
+    DEC_LIST,
+    DEF_LIST,
+    COMP_STM,
+    STM_LIST,
+    EXP_STMT,
+    IF_THEN,
+    IF_THEN_ELSE,
+    FUNC_CALL,
+    ARGS,
+    FUNCTION,
+    PARAM,
+    ARG,
+    CALL,
+    LABEL,
+    GOTO,
+    JLT,
+    JLE,
+    JGT,
+    JGE,
+    EQ,
+    NEQ
+};
 #define MAXLENGTH   1000    //定义符号表的大小
 #define DX 3*sizeof(int)          //活动记录控制信息需要的单元数
 //以下语法树结点类型、三地址结点类型等定义仅供参考，实验时一定要根据自己的理解来定义

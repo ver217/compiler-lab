@@ -22,7 +22,6 @@ void display(struct node *,int);
 };
 
 //  %type 定义非终结符的语义值类型
-//%type  <ptr> Program ExtDefList ExtDef  Specifier ExtDecList FuncDec CompSt VarList VarDec ParamDec Stmt StmList DefList Def DecList Dec Exp Args
 %type  <ptr> Program ExtStmtList ExtStmt Specifier Var VarDec VarDecList VarDecStmt ParamDec ParamList FuncDec FuncDecStmt Exp ArgList Stmt BlockStmt FuncDef
 %type <ptr> BlockInnerStmtList
 //% token 定义终结符的语义值类型
@@ -108,7 +107,6 @@ Exp: Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_i
     | NOT Exp       {$$=mknode(NOT,$2,NULL,NULL,yylineno);strcpy($$->type_id,"NOT");}
     | ID '(' ArgList ')' {$$=mknode(FUNC_CALL,$3,NULL,NULL,yylineno);strcpy($$->type_id,$1);}
     | ID '(' ')'      {$$=mknode(FUNC_CALL,NULL,NULL,NULL,yylineno);strcpy($$->type_id,$1);}
-    //| ID            {$$ = mknode(ID, NULL, NULL, NULL, yylineno); strcpy($$->type_id, $1);}
     | Var {$$ = $1;}
     | INT           {$$=mknode(INT,NULL,NULL,NULL,yylineno);$$->type_int=$1;$$->type=INT;}
     | FLOAT         {$$=mknode(FLOAT,NULL,NULL,NULL,yylineno);$$->type_float=$1;$$->type=FLOAT;}
