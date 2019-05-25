@@ -21,8 +21,7 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
         case EXT_VAR_DEF:
             printf("%*c外部变量定义：\n", indent, ' ');
             display(T->ptr[0], indent + 3);     //显示外部变量类型
-            printf("%*c变量名：\n", indent + 3, ' ');
-            display(T->ptr[1], indent + 6);     //显示变量列表
+            display(T->ptr[1], indent + 3);     //显示变量列表
             break;
         case TYPE:
             printf("%*c类型： %s\n", indent, ' ', T->type_id);
@@ -33,16 +32,18 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
             break;
         case FUNC_DEF:
             printf("%*c函数定义：\n", indent, ' ');
-            display(T->ptr[0], indent + 3);   //显示函数返回类型
-            display(T->ptr[1], indent + 3);   //显示函数名和参数
-            display(T->ptr[2], indent + 3);   //显示函数体
+            // display(T->ptr[0], indent + 3);   //显示函数返回类型
+            display(T->ptr[0], indent + 3);   //显示函数声明
+            display(T->ptr[1], indent + 3);   //显示函数体
             break;
         case FUNC_DEC:
             printf("%*c函数名：%s\n", indent, ' ', T->type_id);
             if (T->ptr[0]) {
-                printf("%*c函数形参：\n", indent, ' ');
-                display(T->ptr[0], indent + 3); //显示函数参数列表
+                printf("%*c函数形参：\n", indent + 3, ' ');
+                display(T->ptr[0], indent + 6); //显示函数参数列表
             } else printf("%*c无参函数\n", indent + 3, ' ');
+            printf("%*c返回", indent + 3, ' ');
+            display(T->ptr[1], 0); // 返回类型
             break;
         case PARAM_LIST:
             display(T->ptr[0], indent);    //依次显示全部参数类型和名称，
@@ -62,10 +63,18 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
             break;
         case COMP_STM:
             printf("%*c复合语句：\n", indent, ' ');
-            printf("%*c复合语句的变量定义：\n", indent + 3, ' ');
-            display(T->ptr[0], indent + 6);   //显示定义部分
-            printf("%*c复合语句的语句部分：\n", indent + 3, ' ');
-            display(T->ptr[1], indent + 6);   //显示语句部分
+            // printf("%*c复合语句的变量定义：\n", indent + 3, ' ');
+            // display(T->ptr[0], indent + 6);   //显示定义部分
+            // printf("%*c复合语句的语句部分：\n", indent + 3, ' ');
+            // display(T->ptr[1], indent + 6);   //显示语句部分
+            display(T->ptr[0], indent + 3); // 复合语句列表
+            break;
+        case COMP_LIST:
+            T0 = T;
+            while (T0) {
+                display(T0->ptr[0], indent);
+                T0 = T0->ptr[1];
+            }
             break;
         case STM_LIST:
             display(T->ptr[0], indent);     //显示第一条语句
@@ -110,9 +119,10 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
                 if (T0->ptr[0]->kind == ID)
                     printf("%*c %s\n", indent + 3, ' ', T0->ptr[0]->type_id);
                 else if (T0->ptr[0]->kind == ASSIGNOP) {
-                    printf("%*c %s ASSIGNOP\n ", indent + 3, ' ', T0->ptr[0]->ptr[0]->type_id);
+                    printf("%*c %s =", indent + 3, ' ', T0->ptr[0]->ptr[0]->type_id);
                     //显示初始化表达式
-                    display(T0->ptr[0]->ptr[1], indent + strlen(T0->ptr[0]->ptr[0]->type_id) + 4);
+                    // display(T0->ptr[0]->ptr[1], indent + strlen(T0->ptr[0]->ptr[0]->type_id) + 4);
+                    display(T0->ptr[0]->ptr[1], 0);
                 }
                 T0 = T0->ptr[1];
             }

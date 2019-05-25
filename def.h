@@ -16,6 +16,7 @@ enum node_kind  {
     DEC_LIST,
     DEF_LIST,
     COMP_STM,
+    COMP_LIST,
     STM_LIST,
     EXP_STMT,
     IF_THEN,
