@@ -54,7 +54,6 @@ ExtStmtList: { $$ = NULL; }
 ExtStmt: VarDecStmt { $$ = mknode(EXT_VAR_DEF, $1, NULL, NULL, yylineno); }   //该结点对应一个外部变量声明
     | FuncDecStmt { $$ = mknode(FUNC_DEC, $1, NULL, NULL, yylineno); }         //TODO: UPDATE该结点对应一个函数定义
     | FuncDef { $$ = mknode(FUNC_DEF, $1, NULL, NULL, yylineno); }
-    | Var ASSIGNOP Exp ';' { $$ = mknode(ASSIGNOP, $1, $3, NULL, yylineno); strcpy($$->type_id, "'='"); }
     | error ';' { $$ = NULL; }
 ;
 Specifier: TYPE { $$ = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->type = resolve_type($1); }

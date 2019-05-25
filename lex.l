@@ -4,6 +4,7 @@
 #include <string.h>
 #include "def.h"
 #include "parser.tab.h"
+#include "util.h"
 
 int yycolumn = 1;
 #define YY_USER_ACTION    	yylloc.first_line=yylloc.last_line=yylineno; \
@@ -18,14 +19,34 @@ typedef union {
 #define YYSTYPE YYLVAL
 
 %}
+
+%x COMMENT
+%x CHARSEQ
+
 id   [A-Za-z][A-Za-z0-9]*
 int    [0-9]+
 float ([0-9]*\.[0-9]+)|([0-9]+\.)
-char \'([^'\\]|\\['"?\\abfnrtv])+\'
+char \'([^'\\]|\\['"?\\abfnrtv]|\\[0-7]{1,3}|\\[xX][0-9a-fA-F]+)+\'
+string \"([^"\\]|\\['"?\\abfnrtv]|\\[0-7]{1,3}|\\[xX][0-9a-fA-F]+)*\"
+inner_char ([^'\\\n]|\\['"?\\abfnrtv]|\\[0-7]{1,3}|\\[xX][0-9a-fA-F]+)+
+inner_str ([^"\\\n]|\\['"?\\abfnrtv]|\\[0-7]{1,3}|\\[xX][0-9a-fA-F]+)*
 %%
+
+"//".*\n
+"/*" { BEGIN(COMMENT); }
+<COMMENT>"*/" { BEGIN(INITIAL); }
+<COMMENT>([^*]|\n)+|.
+<COMMENT><<EOF>> { printf("unterminated comment in line %d\n",yylineno); return 0; }
+"'" { BEGIN(CHARSEQ); }
+<CHARSEQ>"'" { BEGIN(INITIAL); }
+<CHARSEQ>\n |
+<CHARSEQ><<EOF>> { printf("unterminated char seq in line %d\n",yylineno); return 0; }
+<CHARSEQ>{inner_char}\' { unput('\''); yytext[yyleng-1] = '\0'; yylval.type_char = atoc(yytext); return CHAR;}
+<CHARSEQ>.
+
 {int} {yylval.type_int=atoi(yytext); return INT;}
 {float} {yylval.type_float=atof(yytext); return FLOAT;}
-{char} { yylval.type_char=yytext[1]; return CHAR; }
+
 "int" |
 "float" |
 "char" {strcpy(yylval.type_id, yytext); return TYPE;}
@@ -58,7 +79,6 @@ char \'([^'\\]|\\['"?\\abfnrtv])+\'
 "<=" |
 "!=" {strcpy(yylval.type_id,  yytext); return CMP;}
 [ \t\r]+
-"//".*\n
 . {printf("error in line %d\n",yylineno);}
 %%
 

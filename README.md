@@ -48,6 +48,6 @@ BlockStmt -> { VarDecStmtList StmtList }
 
 FuncDef -> Specifier FuncDec BlockStmt
 
-ExtStmt -> VarDecStmt | FuncDecStmt | FuncDef | Lval = Exp
+ExtStmt -> VarDecStmt | FuncDecStmt | FuncDef
 ExtStmtList -> ExtStmt ExtStmtList | E
 program -> ExtStmtList
