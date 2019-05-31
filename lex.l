@@ -44,45 +44,45 @@ inner_str ([^"\\\n]|\\['"?\\abfnrtv]|\\[0-7]{1,3}|\\[xX][0-9a-fA-F]+)*
 <CHARSEQ>{inner_char}\' { unput('\''); yytext[yyleng-1] = '\0'; yylval.type_char = atoc(yytext); return CHAR;}
 <CHARSEQ>.
 
-{int} {yylval.type_int=atoi(yytext); return INT;}
-{float} {yylval.type_float=atof(yytext); return FLOAT;}
+{int} { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, INT); yylval.type_int=atoi(yytext); return INT;}
+{float} { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, FLOAT); yylval.type_float=atof(yytext); return FLOAT;}
 
 "int" |
 "float" |
-"char" {strcpy(yylval.type_id, yytext); return TYPE;}
-"return" {return RETURN;}
-"if" {return IF;}
-"else" {return ELSE;}
-"while" {return WHILE;}
-{id} {strcpy(yylval.type_id,  yytext); return ID;}
+"char" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, TYPE); strcpy(yylval.type_id, yytext); return TYPE;}
+"return" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, RETURN); return RETURN;}
+"if" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, IF); return IF;}
+"else" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, ELSE); return ELSE;}
+"while" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, WHILE); return WHILE;}
+{id} { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, ID); strcpy(yylval.type_id,  yytext); return ID;}
 "/=" |
 "*=" |
 "+=" |
 "-=" |
-"%=" { strcpy(yylval.type_id, yytext); return COMPASSIGN; }
-"=" {return ASSIGNOP;}
-"+" {return PLUS;}
-"-" {return MINUS;}
-"*" {return STAR;}
-"/" {return DIV;}
+"%=" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, COMPASSIGN); strcpy(yylval.type_id, yytext); return COMPASSIGN; }
+"=" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, ASSIGNOP); return ASSIGNOP;}
+"+" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, PLUS); return PLUS;}
+"-" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, MINUS); return MINUS;}
+"*" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, STAR); return STAR;}
+"/" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, DIV); return DIV;}
 "," |
 ";" |
 "(" |
 ")" |
 "{" |
-"}" {return yytext[0];}
+"}" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, -1); return yytext[0];}
 \n {yycolumn = 1;}
-"&&" {return AND;}
-"||" {return OR;}
-"!" {return NOT;}
-"++" {return INC;}
-"--" {return DEC;}
+"&&" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, AND); return AND;}
+"||" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, OR); return OR;}
+"!" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, NOT); return NOT;}
+"++" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, INC); return INC;}
+"--" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, DEC); return DEC;}
 ">" |
 "<" |
 "==" |
 ">=" |
 "<=" |
-"!=" {strcpy(yylval.type_id,  yytext); return CMP;}
+"!=" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, CMP); strcpy(yylval.type_id,  yytext); return CMP;}
 [ \t\r]+
 . {printf("error in line %d\n",yylineno);}
 %%
