@@ -22,7 +22,7 @@ void display(struct node *,int);
 };
 
 //  %type 定义非终结符的语义值类型
-%type  <ptr> Program ExtStmtList ExtStmt Specifier Var VarDec VarDecList VarDecStmt ParamDec ParamList FuncDec FuncDecStmt Exp ArgList Stmt BlockStmt FuncDef
+%type <ptr> Program ExtStmtList ExtStmt Specifier Var VarDec VarDecList VarDecStmt ParamDec ParamList FuncDec FuncDecStmt Exp ArgList Stmt BlockStmt FuncDef
 %type <ptr> BlockInnerStmtList
 //% token 定义终结符的语义值类型
 %token <type_int> INT              //指定INT的语义值是type_int，有词法分析得到的数值
@@ -94,6 +94,10 @@ BlockStmt: '{' BlockInnerStmtList '}' {$$=mknode(COMP_STM,$2,NULL,NULL,yylineno)
 FuncDef: Specifier FuncDec BlockStmt { $2->ptr[1] = $1; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
 ;
 Exp: Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符
+    | Var INC { $$=mknode(INC, $1, NULL, NULL, yylineno); strcpy($$->type_id, "post ++"); }
+    | INC Var { $$=mknode(INC, $2, NULL, NULL, yylineno); strcpy($$->type_id, "pre ++"); }
+    | Var DEC { $$=mknode(DEC, $1, NULL, NULL, yylineno); strcpy($$->type_id, "post --"); }
+    | DEC Var { $$=mknode(DEC, $2, NULL, NULL, yylineno); strcpy($$->type_id, "pre --"); }
     | Exp AND Exp   {$$=mknode(AND,$1,$3,NULL,yylineno);strcpy($$->type_id,"AND");}
     | Exp OR Exp    {$$=mknode(OR,$1,$3,NULL,yylineno);strcpy($$->type_id,"OR");}
     | Exp CMP Exp {$$=mknode(CMP,$1,$3,NULL,yylineno);strcpy($$->type_id,$2);}  //词法分析关系运算符号自身值保存在$2中

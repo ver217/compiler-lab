@@ -153,6 +153,8 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
             break;
         case NOT:
         case UMINUS:
+        case INC:
+        case DEC:
             printf("%*c%s\n", indent, ' ', T->type_id);
             display(T->ptr[0], indent + 3);
             break;
