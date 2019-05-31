@@ -1,6 +1,4 @@
 .vscode/*
-a.out
-*.tab.*
-*.output
-*.yy.c
+bin/*
+output/*
 test.c

@@ -1,12 +1,13 @@
 .PHONY: all clean compress
 
-all: lex.l parser.y ast.c util.h util.c
-	bison -d -v parser.y
-	flex lex.l
-	gcc -g parser.tab.c lex.yy.c ast.c util.c
+ast: src/lex.l src/parser.y src/ast.c include/util.h src/util.c
+	bison -d -v src/parser.y
+	flex src/lex.l
+	mv parser.* lex.yy.c output
+	gcc -g output/parser.tab.c output/lex.yy.c src/ast.c src/util.c -o bin/ast
 
 clean:
-	rm -f parser.tab.c parser.tab.h parser.output lex.yy.c a.out
+	rm -f output/* bin/*
 
-compress: ast.c def.h lex.l parser.y util.h util.c Makefile
-	zip source.zip ast.c def.h lex.l parser.y util.h util.c Makefile
+compress: src/ast.c include/def.h src/lex.l src/parser.y include/util.h src/util.c Makefile
+	zip source.zip src/ast.c include/def.h src/lex.l src/parser.y include/util.h src/util.c Makefile

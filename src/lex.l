@@ -2,9 +2,9 @@
 /*%option debug */
 %{
 #include <string.h>
-#include "def.h"
-#include "parser.tab.h"
-#include "util.h"
+#include "../include/def.h"
+#include "../output/parser.tab.h"
+#include "../include/util.h"
 
 int yycolumn = 1;
 #define YY_USER_ACTION    	yylloc.first_line=yylloc.last_line=yylineno; \

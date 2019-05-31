@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include "parser.tab.h"
+#include "../output/parser.tab.h"
 
 enum node_kind  {
     EXT_DEF_LIST,

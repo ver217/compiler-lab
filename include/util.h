@@ -1,5 +1,5 @@
 #pragma once
-#include "parser.tab.h"
+#include "../output/parser.tab.h"
 
 int resolve_type(char* str);
 

@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include "def.h"
-#include "util.h"
+#include "../include/def.h"
+#include "../include/util.h"
 extern int yylineno;
 extern char *yytext;
 extern FILE *yyin;
