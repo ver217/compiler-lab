@@ -55,6 +55,11 @@ inner_str ([^"\\\n]|\\['"?\\abfnrtv]|\\[0-7]{1,3}|\\[xX][0-9a-fA-F]+)*
 "else" {return ELSE;}
 "while" {return WHILE;}
 {id} {strcpy(yylval.type_id,  yytext); return ID;}
+"/=" |
+"*=" |
+"+=" |
+"-=" |
+"%=" { strcpy(yylval.type_id, yytext); return COMPASSIGN; }
 "=" {return ASSIGNOP;}
 "+" {return PLUS;}
 "-" {return MINUS;}

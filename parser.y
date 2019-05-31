@@ -26,20 +26,20 @@ void display(struct node *,int);
 %type <ptr> BlockInnerStmtList
 //% token 定义终结符的语义值类型
 %token <type_int> INT              //指定INT的语义值是type_int，有词法分析得到的数值
-%token <type_id> ID TYPE CMP  //指定ID,CMP 的语义值是type_id，有词法分析得到的标识符字符串
+%token <type_id> ID TYPE CMP COMPASSIGN  //指定ID,CMP 的语义值是type_id，有词法分析得到的标识符字符串
 %token <type_float> FLOAT         //指定ID的语义值是type_id，有词法分析得到的标识符字符串
 %token <type_char> CHAR
 
 %token AND OR NOT IF ELSE WHILE RETURN
-%token PLUS MINUS STAR DIV ASSIGNOP
+%token PLUS MINUS STAR DIV ASSIGNOP MOD
 %token INC DEC
 
-%right ASSIGNOP
+%right ASSIGNOP COMPASSIGN
 %left OR
 %left AND
 %left CMP
 %left PLUS MINUS
-%left STAR DIV
+%left STAR DIV MOD
 %right UMINUS NOT INC DEC
 
 %nonassoc LOWER_THEN_ELSE
@@ -93,7 +93,8 @@ BlockStmt: '{' BlockInnerStmtList '}' {$$=mknode(COMP_STM,$2,NULL,NULL,yylineno)
 ;
 FuncDef: Specifier FuncDec BlockStmt { $2->ptr[1] = $1; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
 ;
-Exp: Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符
+Exp: Var COMPASSIGN Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id, $2);}
+    | Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符
     | Var INC { $$=mknode(INC, $1, NULL, NULL, yylineno); strcpy($$->type_id, "post ++"); }
     | INC Var { $$=mknode(INC, $2, NULL, NULL, yylineno); strcpy($$->type_id, "pre ++"); }
     | Var DEC { $$=mknode(DEC, $1, NULL, NULL, yylineno); strcpy($$->type_id, "post --"); }
@@ -105,6 +106,7 @@ Exp: Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_i
     | Exp MINUS Exp {$$=mknode(MINUS,$1,$3,NULL,yylineno);strcpy($$->type_id,"'-'");}
     | Exp STAR Exp  {$$=mknode(STAR,$1,$3,NULL,yylineno);strcpy($$->type_id,"'*'");}
     | Exp DIV Exp   {$$=mknode(DIV,$1,$3,NULL,yylineno);strcpy($$->type_id,"'/'");}
+    | Exp MOD Exp   {$$=mknode(DIV,$1,$3,NULL,yylineno);strcpy($$->type_id,"'%'");}
     | '(' Exp ')'     {$$=$2;}
     | MINUS Exp %prec UMINUS   {$$=mknode(UMINUS,$2,NULL,NULL,yylineno);strcpy($$->type_id,"UMINUS");}
     | NOT Exp       {$$=mknode(NOT,$2,NULL,NULL,yylineno);strcpy($$->type_id,"NOT");}
