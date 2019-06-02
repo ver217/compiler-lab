@@ -1,4 +1,4 @@
-#include "def.h"
+#include "../include/def.h"
 
 char *strcat0(char *s1, char *s2) {
     static char result[10];
@@ -10,21 +10,21 @@ char *strcat0(char *s1, char *s2) {
 char *newAlias() {
     static int no = 1;
     char s[10];
-    itoa(no++, s, 10);
+    sprintf(s, "%d", no++);
     return strcat0("v", s);
 }
 
 char *newLabel() {
     static int no = 1;
     char s[10];
-    itoa(no++, s, 10);
+    sprintf(s, "%d", no++);
     return strcat0("label", s);
 }
 
 char *newTemp() {
     static int no = 1;
     char s[10];
-    itoa(no++, s, 10);
+    sprintf(s, "%d", no++);
     return strcat0("temp", s);
 }
 
@@ -233,7 +233,7 @@ void ext_var_list(struct node *T) { //处理变量列表
     }
 }
 
-int  match_param(int i, struct ASTNode *T) {
+int  match_param(int i, struct node *T) {
     int j, num = symbolTable.symbols[i].paramnum;
     int type1, type2;
     if (num == 0 && T == NULL) return 1;
@@ -257,7 +257,7 @@ int  match_param(int i, struct ASTNode *T) {
     return 1;
 }
 
-void boolExp(struct ASTNode *T) { //布尔表达式，参考文献[2]p84的思想
+void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
     struct opn opn1, opn2, result;
     int op;
     int rtn;
@@ -294,7 +294,7 @@ void boolExp(struct ASTNode *T) { //布尔表达式，参考文献[2]p84的思�
             }
             T->width = 0;
             break;
-        case RELOP: //处理关系运算表达式,2个操作数都按基本表达式处理
+        case CMP: //处理关系运算表达式,2个操作数都按基本表达式处理
             T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
             Exp(T->ptr[0]);
             T->width = T->ptr[0]->width;
@@ -355,10 +355,10 @@ void boolExp(struct ASTNode *T) { //布尔表达式，参考文献[2]p84的思�
 }
 
 
-void Exp(struct ASTNode *T) {
+void Exp(struct node *T) {
     //处理基本表达式，参考文献[2]p82的思想
     int rtn, num, width;
-    struct ASTNode *T0;
+    struct node *T0;
     struct opn opn1, opn2, result;
     if (T) {
         switch (T->kind) {
@@ -419,7 +419,7 @@ void Exp(struct ASTNode *T) {
             break;
         case AND:   //按算术表达式方式计算布尔值，未写完
         case OR:    //按算术表达式方式计算布尔值，未写完
-        case RELOP: //按算术表达式方式计算布尔值，未写完
+        case CMP: //按算术表达式方式计算布尔值，未写完
             T->type = INT;
             T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
             Exp(T->ptr[0]);
@@ -514,10 +514,10 @@ void Exp(struct ASTNode *T) {
     }
 }
 
-void semantic_Analysis(struct ASTNode *T) {
+void semantic_Analysis(struct node *T) {
     //对抽象语法树的先根遍历,按display的控制结构修改完成符号表管理和语义检查和TAC生成（语句部分）
     int rtn, num, width;
-    struct ASTNode *T0;
+    struct node *T0;
     struct opn opn1, opn2, result;
     if (T) {
         switch (T->kind) {
@@ -779,7 +779,7 @@ void semantic_Analysis(struct ASTNode *T) {
         case ASSIGNOP:
         case AND:
         case OR:
-        case RELOP:
+        case CMP:
         case PLUS:
         case MINUS:
         case STAR:
@@ -793,7 +793,7 @@ void semantic_Analysis(struct ASTNode *T) {
     }
 }
 
-void semantic_Analysis0(struct ASTNode *T) {
+void semantic_Analysis0(struct node *T) {
     symbolTable.index = 0;
     fillSymbolTable("read", "", 0, INT, 'F', 4);
     symbolTable.symbols[0].paramnum = 0; //read的形参个数
@@ -805,5 +805,5 @@ void semantic_Analysis0(struct ASTNode *T) {
     T->offset = 0;            //外部变量在数据区的偏移量
     semantic_Analysis(T);
     prnIR(T->code);
-    objectCode(T->code);
+    // objectCode(T->code);
 }
