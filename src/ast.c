@@ -14,7 +14,7 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
     struct node *T0;
     if (T) {
         switch (T->kind) {
-        case EXT_DEF_LIST:
+        case EXT_STMT_LIST:
             display(T->ptr[0], indent);   //显示该外部定义列表中的第一个
             display(T->ptr[1], indent);   //显示该外部定义列表中的其它外部定义
             break;
@@ -107,12 +107,12 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
             display(T->ptr[0], indent);   //显示该局部变量定义列表中的第一个
             display(T->ptr[1], indent);   //显示其它局部变量定义
             break;
-        case VAR_DEF:
+        case VAR_DEC_STMT:
             printf("%*cLOCAL VAR_NAME：\n", indent, ' ');
             display(T->ptr[0], indent + 3); //显示变量类型
             display(T->ptr[1], indent + 3); //显示该定义的全部变量名
             break;
-        case DEC_LIST:
+        case VAR_DEC_LIST:
             printf("%*cVAR_NAME：\n", indent, ' ');
             T0 = T;
             while (T0) {

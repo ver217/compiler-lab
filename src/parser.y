@@ -49,7 +49,7 @@ void display(struct node *,int);
 Program: ExtStmtList { display($1,0); semantic_Analysis0($1);}     /*显示语法树,语义分析*/
 ; 
 ExtStmtList: { $$ = NULL; }
-    | ExtStmt ExtStmtList { $$ = mknode(EXT_DEF_LIST, $1, $2, NULL, yylineno); }   //每一个EXTDEFLIST的结点，其第1棵子树对应一个外部变量声明或函数
+    | ExtStmt ExtStmtList { $$ = mknode(EXT_STMT_LIST, $1, $2, NULL, yylineno); }   //每一个EXTDEFLIST的结点，其第1棵子树对应一个外部变量声明或函数
 ;  
 ExtStmt: VarDecStmt { $$ = $1; $$->kind = EXT_VAR_DEF; }   //该结点对应一个外部变量声明
     | FuncDecStmt { $$ = $1; }         //TODO: UPDATE该结点对应一个函数定义
@@ -63,10 +63,10 @@ Var: ID {$$ = mknode(ID, NULL, NULL, NULL, yylineno); strcpy($$->type_id, $1); }
 VarDec: Var { $$ = $1; }
     | Var ASSIGNOP Exp { $$ = mknode(ASSIGNOP, $1, $3, NULL, yylineno); strcpy($$->type_id, "'='"); }
 ;
-VarDecList: VarDec { $$ = mknode(DEC_LIST, $1, NULL, NULL, yylineno); }
-    | VarDec ',' VarDecList { $$ = mknode(DEC_LIST, $1, $3, NULL, yylineno); }
+VarDecList: VarDec { $$ = mknode(VAR_DEC_LIST, $1, NULL, NULL, yylineno); }
+    | VarDec ',' VarDecList { $$ = mknode(VAR_DEC_LIST, $1, $3, NULL, yylineno); }
 ;
-VarDecStmt: Specifier VarDecList ';' {$$ = mknode(VAR_DEF, $1, $2, NULL, yylineno); }
+VarDecStmt: Specifier VarDecList ';' {$$ = mknode(VAR_DEC_STMT, $1, $2, NULL, yylineno); }
 ;
 ParamDec: Specifier Var { $$ = mknode(PARAM_DEC, $1, $2, NULL, yylineno); }
 ;

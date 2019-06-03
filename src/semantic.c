@@ -521,7 +521,7 @@ void semantic_Analysis(struct node *T) {
     struct opn opn1, opn2, result;
     if (T) {
         switch (T->kind) {
-        case EXT_DEF_LIST:
+        case EXT_STMT_LIST:
             if (!T->ptr[0]) break;
             T->ptr[0]->offset = T->offset;
             semantic_Analysis(T->ptr[0]);    //访问外部定义列表中的第一个
@@ -637,7 +637,7 @@ void semantic_Analysis(struct node *T) {
                 T->width += T->ptr[1]->width;
             }
             break;
-        case VAR_DEF://处理一个局部变量定义,将第一个孩子(TYPE结点)中的类型送到第二个孩子的类型域
+        case VAR_DEC_STMT://处理一个局部变量定义,将第一个孩子(TYPE结点)中的类型送到第二个孩子的类型域
             //类似于上面的外部变量EXT_VAR_DEF，换了一种处理方法
             T->code = NULL;
             T->ptr[1]->type = !strcmp(T->ptr[0]->type_id, "int") ? INT : FLOAT; //确定变量序列各变量类型
