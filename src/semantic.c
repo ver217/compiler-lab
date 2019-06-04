@@ -31,14 +31,14 @@ char *newLabel() {
     static int no = 1;
     char s[10];
     sprintf(s, "%d", no++);
-    return strcat0("label", s);
+    return strcat0("L", s);
 }
 
 char *newTemp() {
     static int no = 1;
     char s[10];
     sprintf(s, "%d", no++);
-    return strcat0("temp", s);
+    return strcat0("t", s);
 }
 
 //生成一条TAC代码的结点组成的双向循环链表，返回头指针
@@ -112,13 +112,13 @@ void prnIR(struct codenode *head) {
         sprintf(resultstr, "%s", h->result.id);
         switch (h->op) {
         case ASSIGNOP:
-            printf("  %s := %s\n", resultstr, opnstr1);
+            printf("  %s = %s\n", resultstr, opnstr1);
             break;
         case PLUS:
         case MINUS:
         case STAR:
         case DIV:
-            printf("  %s := %s %c %s\n", resultstr, opnstr1, \
+            printf("  %s = %s %c %s\n", resultstr, opnstr1, \
                    h->op == PLUS ? '+' : h->op == MINUS ? '-' : h->op == STAR ? '*' : '\\', opnstr2);
             break;
         case FUNCTION:
@@ -173,7 +173,7 @@ void prnIR(struct codenode *head) {
             printf("  ARG %s\n", h->result.id);
             break;
         case CALL:
-            printf("  %s := CALL %s\n", resultstr, opnstr1);
+            printf("  %s = CALL %s\n", resultstr, opnstr1);
             break;
         case RETURN:
             if (h->result.kind)
@@ -339,21 +339,6 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
             strcpy(opn2.id, T->ptr[1]->place->alias);
             opn2.offset = T->ptr[1]->place->offset;
             result.kind = ID;
-            // strcpy(result.id, T->Btrue);
-            // if (strcmp(T->type_id, "<") == 0)
-            //     op = JL;
-            // else if (strcmp(T->type_id, "<=") == 0)
-            //     op = JLE;
-            // else if (strcmp(T->type_id, ">") == 0)
-            //     op = JG;
-            // else if (strcmp(T->type_id, ">=") == 0)
-            //     op = JGE;
-            // else if (strcmp(T->type_id, "==") == 0)
-            //     op = JE;
-            // else if (strcmp(T->type_id, "!=") == 0)
-            //     op = JNE;
-            // T->code = genIR(op, opn1, opn2, result);
-            // T->code = merge(4, T->ptr[0]->code, T->ptr[1]->code, T->code, genGoto(T->Bfalse));
             if (strcmp(T->Btrue, "fall") != 0 && strcmp(T->Bfalse, "fall") != 0) {
                 strcpy(result.id, T->Btrue);
                 T->code = genIR(str_to_op(T->type_id, 0), opn1, opn2, result);
@@ -371,16 +356,12 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
         case AND:
         case OR:
             if (T->kind == AND) {
-                // strcpy(T->ptr[0]->Btrue, newLabel());
-                // strcpy(T->ptr[0]->Bfalse, T->Bfalse);
                 strcpy(T->ptr[0]->Btrue, "fall");
                 if (strcmp(T->Bfalse, "fall") != 0)
                     strcpy(T->ptr[0]->Bfalse, T->Bfalse);
                 else
                     strcpy(T->ptr[0]->Bfalse, newLabel());
             } else {
-                // strcpy(T->ptr[0]->Btrue, T->Btrue);
-                // strcpy(T->ptr[0]->Bfalse, newLabel());
                 if (strcmp(T->Btrue, "fall") != 0)
                     strcpy(T->ptr[0]->Btrue, T->Btrue);
                 else
@@ -704,19 +685,23 @@ void semantic_Analysis(struct node *T) {
             scope_stack.idx--;
             break;
         case COMP_LIST:
-            if (T->ptr[0]) {
-                T->ptr[0]->offset = T->offset;
-                strcpy(T->ptr[0]->Snext, T->Snext); //S.next属性向下传递
-                semantic_Analysis(T->ptr[0]);
-                T->code = T->ptr[0]->code;
-                T->width += T->ptr[0]->width;
-            }
+            if (T->ptr[1] && (T->ptr[0]->kind == IF_THEN || T->ptr[0]->kind == IF_THEN_ELSE || T->ptr[0]->kind == WHILE))
+                strcpy(T->ptr[0]->Snext, newLabel());
+            else
+                strcpy(T->ptr[0]->Snext, T->Snext);
+            T->ptr[0]->offset = T->offset;
+            semantic_Analysis(T->ptr[0]);
+            T->code = T->ptr[0]->code;
+            T->width += T->ptr[0]->width;
             if (T->ptr[1]) {
+                strcpy(T->ptr[1]->Snext, T->Snext);
                 T->ptr[1]->offset = T->offset + T->width;
-                strcpy(T->ptr[1]->Snext, T->Snext); //S.next属性向下传递
                 semantic_Analysis(T->ptr[1]);       //处理复合语句的语句序列
                 T->width += T->ptr[1]->width;
-                T->code = merge(2, T->code, T->ptr[1]->code);
+                if (T->ptr[0]->kind == VAR_DEC_STMT || T->ptr[0]->kind == RETURN || T->ptr[0]->kind == EXP_STMT || T->ptr[0]->kind == COMP_STM)
+                    T->code = merge(2, T->code, T->ptr[1]->code);
+                else
+                    T->code = merge(3, T->code, genLabel(T->ptr[0]->Snext), T->ptr[1]->code);
             }
             break;
         case VAR_DEC_LIST:
@@ -742,44 +727,35 @@ void semantic_Analysis(struct node *T) {
             T->code = T->ptr[1]->code;
             T->width = T->ptr[1]->width;
             break;
-        case STM_LIST:  // TODO: check
-            if (!T->ptr[0]) {
-                T->code = NULL;    //空语句序列
-                T->width = 0;
-                break;
-            }
-            if (T->ptr[1]) //2条以上语句连接，生成新标号作为第一条语句结束后到达的位置
-                strcpy(T->ptr[0]->Snext, newLabel());
-            else     //语句序列仅有一条语句，S.next属性向下传递
-                strcpy(T->ptr[0]->Snext, T->Snext);
-            T->ptr[0]->offset = T->offset;
-            semantic_Analysis(T->ptr[0]);
-            T->code = T->ptr[0]->code;
-            T->width = T->ptr[0]->width;
-            if (T->ptr[1]) {    //2条以上语句连接,S.next属性向下传递
-                strcpy(T->ptr[1]->Snext, T->Snext);
-                T->ptr[1]->offset = T->offset; //顺序结构共享单元方式
-                // T->ptr[1]->offset = T->offset + T->ptr[0]->width; //顺序结构顺序分配单元方式
-                semantic_Analysis(T->ptr[1]);
-                //序列中第1条为表达式语句，返回语句，复合语句时，第2条前不需要标号
-                if (T->ptr[0]->kind == RETURN || T->ptr[0]->kind == EXP_STMT || T->ptr[0]->kind == COMP_STM)
-                    T->code = merge(2, T->code, T->ptr[1]->code);
-                else
-                    T->code = merge(3, T->code, genLabel(T->ptr[0]->Snext), T->ptr[1]->code);
-                if (T->ptr[1]->width > T->width) T->width = T->ptr[1]->width; //顺序结构共享单元方式
-                T->width += T->ptr[1]->width; //顺序结构顺序分配单元方式
-            }
-            break;
+        // case STM_LIST:  // TODO: check
+        //     if (!T->ptr[0]) {
+        //         T->code = NULL;    //空语句序列
+        //         T->width = 0;
+        //         break;
+        //     }
+        //     if (T->ptr[1]) //2条以上语句连接，生成新标号作为第一条语句结束后到达的位置
+        //         strcpy(T->ptr[0]->Snext, newLabel());
+        //     else     //语句序列仅有一条语句，S.next属性向下传递
+        //         strcpy(T->ptr[0]->Snext, T->Snext);
+        //     T->ptr[0]->offset = T->offset;
+        //     semantic_Analysis(T->ptr[0]);
+        //     T->code = T->ptr[0]->code;
+        //     T->width = T->ptr[0]->width;
+        //     if (T->ptr[1]) {    //2条以上语句连接,S.next属性向下传递
+        //         strcpy(T->ptr[1]->Snext, T->Snext);
+        //         T->ptr[1]->offset = T->offset; //顺序结构共享单元方式
+        //         // T->ptr[1]->offset = T->offset + T->ptr[0]->width; //顺序结构顺序分配单元方式
+        //         semantic_Analysis(T->ptr[1]);
+        //         //序列中第1条为表达式语句，返回语句，复合语句时，第2条前不需要标号
+        //         if (T->ptr[0]->kind == RETURN || T->ptr[0]->kind == EXP_STMT || T->ptr[0]->kind == COMP_STM)
+        //             T->code = merge(2, T->code, T->ptr[1]->code);
+        //         else
+        //             T->code = merge(3, T->code, genLabel(T->ptr[0]->Snext), T->ptr[1]->code);
+        //         if (T->ptr[1]->width > T->width) T->width = T->ptr[1]->width; //顺序结构共享单元方式
+        //         T->width += T->ptr[1]->width; //顺序结构顺序分配单元方式
+        //     }
+        //     break;
         case IF_THEN:
-            // strcpy(T->ptr[0]->Btrue, newLabel()); //设置条件语句真假转移位置
-            // strcpy(T->ptr[0]->Bfalse, T->Snext);
-            // T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
-            // boolExp(T->ptr[0]);
-            // T->width = T->ptr[0]->width;
-            // strcpy(T->ptr[1]->Snext, T->Snext);
-            // semantic_Analysis(T->ptr[1]);      //if子句
-            // if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
-            // T->code = merge(3, T->ptr[0]->code, genLabel(T->ptr[0]->Btrue), T->ptr[1]->code);
             strcpy(T->ptr[0]->Btrue, "fall");
             strcpy(T->ptr[1]->Snext, T->Snext);
             strcpy(T->ptr[0]->Bfalse, T->Snext);
@@ -792,31 +768,31 @@ void semantic_Analysis(struct node *T) {
             T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
             break;  //控制语句都还没有处理offset和width属性
         case IF_THEN_ELSE:
-            strcpy(T->ptr[0]->Btrue, newLabel()); //设置条件语句真假转移位置
+            strcpy(T->ptr[0]->Btrue, "fall");
             strcpy(T->ptr[0]->Bfalse, newLabel());
             T->ptr[0]->offset = T->ptr[1]->offset = T->ptr[2]->offset = T->offset;
-            boolExp(T->ptr[0]);      //条件，要单独按短路代码处理
+            boolExp(T->ptr[0]);
             T->width = T->ptr[0]->width;
             strcpy(T->ptr[1]->Snext, T->Snext);
-            semantic_Analysis(T->ptr[1]);      //if子句
+            semantic_Analysis(T->ptr[1]);
             if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
             strcpy(T->ptr[2]->Snext, T->Snext);
-            semantic_Analysis(T->ptr[2]);      //else子句
+            semantic_Analysis(T->ptr[2]);
             if (T->width < T->ptr[2]->width) T->width = T->ptr[2]->width;
-            T->code = merge(6, T->ptr[0]->code, genLabel(T->ptr[0]->Btrue), T->ptr[1]->code, \
+            T->code = merge(5, T->ptr[0]->code, T->ptr[1]->code, \
                             genGoto(T->Snext), genLabel(T->ptr[0]->Bfalse), T->ptr[2]->code);
             break;
         case WHILE:
-            strcpy(T->ptr[0]->Btrue, newLabel()); //子结点继承属性的计算
+            strcpy(T->ptr[0]->Btrue, "fall");
             strcpy(T->ptr[0]->Bfalse, T->Snext);
             T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
-            boolExp(T->ptr[0]);      //循环条件，要单独按短路代码处理
+            boolExp(T->ptr[0]);
             T->width = T->ptr[0]->width;
             strcpy(T->ptr[1]->Snext, newLabel());
             semantic_Analysis(T->ptr[1]);      //循环体
             if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
-            T->code = merge(5, genLabel(T->ptr[1]->Snext), T->ptr[0]->code, \
-                            genLabel(T->ptr[0]->Btrue), T->ptr[1]->code, genGoto(T->ptr[1]->Snext));
+            T->code = merge(4, genLabel(T->ptr[1]->Snext), T->ptr[0]->code, \
+                            T->ptr[1]->code, genGoto(T->ptr[1]->Snext));
             break;
         case EXP_STMT:
             T->ptr[0]->offset = T->offset;
