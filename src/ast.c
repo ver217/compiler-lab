@@ -26,10 +26,10 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
         case TYPE:
             printf("%*c类型： %s\n", indent, ' ', T->type_id);
             break;
-        case EXT_DEC_LIST:
-            display(T->ptr[0], indent);    //依次显示外部变量名，
-            display(T->ptr[1], indent);    //后续还有相同的，仅显示语法树此处理代码可以和类似代码合并
-            break;
+        // case EXT_DEC_LIST:
+        //     display(T->ptr[0], indent);    //依次显示外部变量名，
+        //     display(T->ptr[1], indent);    //后续还有相同的，仅显示语法树此处理代码可以和类似代码合并
+        //     break;
         case FUNC_DEF:
             printf("%*c函数定义：\n", indent, ' ');
             // display(T->ptr[0], indent + 3);   //显示函数返回类型
