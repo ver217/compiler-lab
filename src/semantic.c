@@ -136,19 +136,37 @@ void prnIR(struct codenode *head) {
         case JLE:
             printf("  IF %s <= %s GOTO %s\n", opnstr1, opnstr2, resultstr);
             break;
-        case JLT:
+        case JL:
             printf("  IF %s < %s GOTO %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JGE:
             printf("  IF %s >= %s GOTO %s\n", opnstr1, opnstr2, resultstr);
             break;
-        case JGT:
+        case JG:
             printf("  IF %s > %s GOTO %s\n", opnstr1, opnstr2, resultstr);
             break;
-        case EQ:
+        case JE:
             printf("  IF %s == %s GOTO %s\n", opnstr1, opnstr2, resultstr);
             break;
-        case NEQ:
+        case JNE:
+            printf("  IF %s != %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            break;
+        case JLEF:
+            printf("  IF %s <= %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            break;
+        case JLF:
+            printf("  IF %s < %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            break;
+        case JGEF:
+            printf("  IF %s >= %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            break;
+        case JGF:
+            printf("  IF %s > %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            break;
+        case JEF:
+            printf("  IF %s == %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            break;
+        case JNEF:
             printf("  IF %s != %s GOTO %s\n", opnstr1, opnstr2, resultstr);
             break;
         case ARG:
@@ -172,19 +190,15 @@ void semantic_error(int line, char *msg1, char *msg2) {
     printf("在%d行,%s %s\n", line, msg1, msg2);
 }
 void prn_symbol() { //显示符号表
-    printf("%6s %6s %6s  %6s %4s %6s\n", "变量名", "别 名", "层 号", "类  型", "标记", "偏移量");
+    printf("%-6s %-6s %-6s  %-6s %-4s %-6s\n", "var", "alias", "level", "type", "flag", "offset");
     for (symbol_t* symbol = scope_stack.symbol_tables[scope_stack.idx]; symbol != NULL; symbol = symbol->hh.next)
-        printf("%6s %6s %6d  %6s %4c %6d\n", symbol->name, \
+        printf("%-6s %-6s %-6d  %-6s %-4c %-6d\n", symbol->name, \
                symbol->alias, symbol->level, \
                symbol->type == INT ? "int" : "float", \
                symbol->flag, symbol->offset);
 }
 
 symbol_t* searchSymbolTable(char *name) {
-    // int i;
-    // for (i = symbolTable.index - 1; i >= 0; i--)
-    //     if (!strcmp(symbolTable.symbols[i].name, name))  return i;
-    // return -1;
     symbol_t* symbol_table;
     for (int i = scope_stack.idx; i >= 0; i--) {
         HASH_FIND_STR(scope_stack.symbol_tables[i], name, symbol_table);
@@ -195,22 +209,6 @@ symbol_t* searchSymbolTable(char *name) {
 }
 
 symbol_t* fillSymbolTable(char *name, char *alias, int level, int type, char flag, int offset) {
-    //首先根据name查符号表，不能重复定义 重复定义返回-1
-    // int i;
-    // /*符号查重，考虑外部变量声明前有函数定义，
-    // 其形参名还在符号表中，这时的外部变量与前函数的形参重名是允许的*/
-    // for (i = symbolTable.index - 1; i >= 0 && (symbolTable.symbols[i].level == level || level == 0); i--) {
-    //     if (level == 0 && symbolTable.symbols[i].level == 1) continue; //外部变量和形参不必比较重名
-    //     if (!strcmp(symbolTable.symbols[i].name, name))  return -1;
-    // }
-    // //填写符号表内容
-    // strcpy(symbolTable.symbols[symbolTable.index].name, name);
-    // strcpy(symbolTable.symbols[symbolTable.index].alias, alias);
-    // symbolTable.symbols[symbolTable.index].level = level;
-    // symbolTable.symbols[symbolTable.index].type = type;
-    // symbolTable.symbols[symbolTable.index].flag = flag;
-    // symbolTable.symbols[symbolTable.index].offset = offset;
-    // return symbolTable.index++; //返回的是符号在符号表中的位置序号，中间代码生成时可用序号取到符号别名
     symbol_t* symbol;
     HASH_FIND_STR(scope_stack.symbol_tables[scope_stack.idx], name, symbol);
     if (symbol != NULL)
@@ -222,13 +220,6 @@ symbol_t* fillSymbolTable(char *name, char *alias, int level, int type, char fla
 
 //填写临时变量到符号表，返回临时变量在符号表中的位置
 symbol_t* fill_Temp(char *name, int level, int type, char flag, int offset) {
-    // strcpy(symbolTable.symbols[symbolTable.index].name, "");
-    // strcpy(symbolTable.symbols[symbolTable.index].alias, name);
-    // symbolTable.symbols[symbolTable.index].level = level;
-    // symbolTable.symbols[symbolTable.index].type = type;
-    // symbolTable.symbols[symbolTable.index].flag = flag;
-    // symbolTable.symbols[symbolTable.index].offset = offset;
-    // return symbolTable.index++; //返回的是临时变量在符号表中的位置序号
     return new_symbol("", name, level, type, flag, offset);
 }
 
@@ -245,6 +236,7 @@ void ext_var_list(struct node *T) { //处理变量列表
     switch (T->kind) {
     case VAR_DEC_LIST:
         semantic_Analysis(T);
+        T->ptr[0]->offset = T->offset;
         break;
     case ID:
         symbol = fillSymbolTable(T->type_id, newAlias(), LEV, T->type, 'V', T->offset); //最后一个变量名
@@ -266,6 +258,7 @@ void ext_var_list(struct node *T) { //处理变量列表
         result.kind = ID;
         strcpy(result.id, T->ptr[0]->place->alias);
         T->code = merge(3, T->code, T->ptr[1]->code, genIR(ASSIGNOP, opn1, opn2, result));
+        T->width = T->ptr[0]->offset + T->ptr[1]->width;    // TODO: check
         break;
     }
 }
@@ -327,7 +320,7 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
                 opn2.const_int = 0;
                 result.kind = ID;
                 strcpy(result.id, T->Btrue);
-                T->code = genIR(NEQ, opn1, opn2, result);
+                T->code = genIR(JNE, opn1, opn2, result);
                 T->code = merge(2, T->code, genGoto(T->Bfalse));
             }
             T->width = 0;
@@ -337,7 +330,8 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
             Exp(T->ptr[0]);
             T->width = T->ptr[0]->width;
             Exp(T->ptr[1]);
-            if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
+            if (T->width < T->ptr[1]->width)
+                T->width = T->ptr[1]->width;
             opn1.kind = ID;
             strcpy(opn1.id, T->ptr[0]->place->alias);
             opn1.offset = T->ptr[0]->place->offset;
@@ -345,30 +339,53 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
             strcpy(opn2.id, T->ptr[1]->place->alias);
             opn2.offset = T->ptr[1]->place->offset;
             result.kind = ID;
-            strcpy(result.id, T->Btrue);
-            if (strcmp(T->type_id, "<") == 0)
-                op = JLT;
-            else if (strcmp(T->type_id, "<=") == 0)
-                op = JLE;
-            else if (strcmp(T->type_id, ">") == 0)
-                op = JGT;
-            else if (strcmp(T->type_id, ">=") == 0)
-                op = JGE;
-            else if (strcmp(T->type_id, "==") == 0)
-                op = EQ;
-            else if (strcmp(T->type_id, "!=") == 0)
-                op = NEQ;
-            T->code = genIR(op, opn1, opn2, result);
-            T->code = merge(4, T->ptr[0]->code, T->ptr[1]->code, T->code, genGoto(T->Bfalse));
+            // strcpy(result.id, T->Btrue);
+            // if (strcmp(T->type_id, "<") == 0)
+            //     op = JL;
+            // else if (strcmp(T->type_id, "<=") == 0)
+            //     op = JLE;
+            // else if (strcmp(T->type_id, ">") == 0)
+            //     op = JG;
+            // else if (strcmp(T->type_id, ">=") == 0)
+            //     op = JGE;
+            // else if (strcmp(T->type_id, "==") == 0)
+            //     op = JE;
+            // else if (strcmp(T->type_id, "!=") == 0)
+            //     op = JNE;
+            // T->code = genIR(op, opn1, opn2, result);
+            // T->code = merge(4, T->ptr[0]->code, T->ptr[1]->code, T->code, genGoto(T->Bfalse));
+            if (strcmp(T->Btrue, "fall") != 0 && strcmp(T->Bfalse, "fall") != 0) {
+                strcpy(result.id, T->Btrue);
+                T->code = genIR(str_to_op(T->type_id, 0), opn1, opn2, result);
+                T->code = merge(2, T->code, genGoto(T->Bfalse));
+            } else if (strcmp(T->Btrue, "fall") != 0) {
+                strcpy(result.id, T->Btrue);
+                T->code = genIR(str_to_op(T->type_id, 0), opn1, opn2, result);
+            } else if (strcmp(T->Bfalse, "fall") != 0) {
+                strcpy(result.id, T->Bfalse);
+                T->code = genIR(str_to_op(T->type_id, 1), opn1, opn2, result);
+            } else
+                T->code = NULL;
+            T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, T->code);
             break;
         case AND:
         case OR:
             if (T->kind == AND) {
-                strcpy(T->ptr[0]->Btrue, newLabel());
-                strcpy(T->ptr[0]->Bfalse, T->Bfalse);
+                // strcpy(T->ptr[0]->Btrue, newLabel());
+                // strcpy(T->ptr[0]->Bfalse, T->Bfalse);
+                strcpy(T->ptr[0]->Btrue, "fall");
+                if (strcmp(T->Bfalse, "fall") != 0)
+                    strcpy(T->ptr[0]->Bfalse, T->Bfalse);
+                else
+                    strcpy(T->ptr[0]->Bfalse, newLabel());
             } else {
-                strcpy(T->ptr[0]->Btrue, T->Btrue);
-                strcpy(T->ptr[0]->Bfalse, newLabel());
+                // strcpy(T->ptr[0]->Btrue, T->Btrue);
+                // strcpy(T->ptr[0]->Bfalse, newLabel());
+                if (strcmp(T->Btrue, "fall") != 0)
+                    strcpy(T->ptr[0]->Btrue, T->Btrue);
+                else
+                    strcpy(T->ptr[0]->Btrue, newLabel());
+                strcpy(T->ptr[0]->Bfalse, "fall");
             }
             strcpy(T->ptr[1]->Btrue, T->Btrue);
             strcpy(T->ptr[1]->Bfalse, T->Bfalse);
@@ -376,11 +393,19 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
             boolExp(T->ptr[0]);
             T->width = T->ptr[0]->width;
             boolExp(T->ptr[1]);
-            if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
-            if (T->kind == AND)
-                T->code = merge(3, T->ptr[0]->code, genLabel(T->ptr[0]->Btrue), T->ptr[1]->code);
-            else
-                T->code = merge(3, T->ptr[0]->code, genLabel(T->ptr[0]->Bfalse), T->ptr[1]->code);
+            if (T->width < T->ptr[1]->width)
+                T->width = T->ptr[1]->width;
+            if (T->kind == AND) {
+                if (strcmp(T->Bfalse, "fall") != 0)
+                    T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
+                else
+                    T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genLabel(T->ptr[1]->Bfalse));
+            } else   {
+                if (strcmp(T->Btrue, "fall") != 0)
+                    T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
+                else
+                    T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genLabel(T->ptr[0]->Btrue));
+            }
             break;
         case NOT:
             strcpy(T->ptr[0]->Btrue, T->Bfalse);
@@ -451,8 +476,8 @@ void Exp(struct node *T) {
                 strcpy(opn1.id, T->ptr[1]->place->alias); //右值一定是个变量或临时变量
                 opn1.offset = T->ptr[1]->place->offset;
                 result.kind = ID;
-                // strcpy(result.id, T->ptr[0]->place->alias);
-                // result.offset = T->ptr[0]->place->offset;
+                strcpy(result.id, T->ptr[0]->place->alias);
+                result.offset = T->ptr[0]->place->offset;
                 T->code = merge(2, T->code, genIR(ASSIGNOP, opn1, opn2, result));
             }
             break;
@@ -584,7 +609,9 @@ void semantic_Analysis(struct node *T) {
             T->ptr[0]->type = resolve_type(T->ptr[0]->ptr[1]->type_id); //获取函数返回类型送到含函数名、参数的结点
             T->width = 0;   //函数的宽度设置为0，不会对外部变量的地址分配产生影响
             T->offset = DX; //设置局部变量在活动记录中的偏移量初值
+            T->ptr[0]->func_def = 1;
             semantic_Analysis(T->ptr[0]); //处理函数名和参数结点部分，这里不考虑用寄存器传递参数
+            T->ptr[0]->place->func_def = 1;
             T->offset += T->ptr[0]->width; //用形参单元宽度修改函数局部变量的起始偏移量
             T->ptr[1]->offset = T->offset;
             strcpy(T->ptr[1]->Snext, newLabel()); //函数体语句执行结束后的位置属性
@@ -594,11 +621,22 @@ void semantic_Analysis(struct node *T) {
             T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genLabel(T->ptr[1]->Snext));     //函数体的代码作为函数的代码
             break;
         case FUNC_DEC:      //根据返回类型，函数名填写符号表
-            symbol = fillSymbolTable(T->type_id, newAlias(), LEV, T->type, 'F', 0); //函数不在数据区中分配单元，偏移量为0
-            if (symbol == NULL) {
-                semantic_error(T->pos, T->type_id, "函数重复定义");
+            symbol = searchSymbolTable(T->type_id);
+            if (symbol != NULL) {
+                if (symbol->func_def == 1 && T->func_def == 1)
+                    semantic_error(T->pos, T->type_id, "函数声明重复定义");
+                else if (symbol->func_def == 1 && T->func_def == 0)
+                    semantic_error(T->pos, T->type_id, "函数声明在定义之后");
+                else if (symbol->func_def == 0 && T->func_def == 0)
+                    semantic_error(T->pos, T->type_id, "函数重复声明");
+                else {
+                    symbol->func_def = 1;
+                    T->place = symbol;
+                }
                 break;
-            } else T->place = symbol;
+            }
+            symbol = fillSymbolTable(T->type_id, newAlias(), LEV, T->type, 'F', 0); //函数不在数据区中分配单元，偏移量为0
+            T->place = symbol;
             result.kind = ID;
             strcpy(result.id, T->type_id);
             // result.offset = rtn;
@@ -612,7 +650,7 @@ void semantic_Analysis(struct node *T) {
                 T->code = merge(2, T->code, T->ptr[0]->code); //连接函数名和参数代码序列
             } else symbol->paramnum = 0, T->width = 0;
             break;
-        case PARAM_LIST:    //处理函数形式参数列表
+        case PARAM_LIST:    //处理函数形式参数列表 TODO: check
             T->ptr[0]->offset = T->offset;
             semantic_Analysis(T->ptr[0]);
             if (T->ptr[1]) {
@@ -627,7 +665,7 @@ void semantic_Analysis(struct node *T) {
                 T->code = T->ptr[0]->code;
             }
             break;
-        case  PARAM_DEC:
+        case PARAM_DEC:    // TODO: check
             symbol = fillSymbolTable(T->ptr[1]->type_id, newAlias(), 1, T->ptr[0]->type, 'P', T->offset);
             if (symbol == NULL)
                 semantic_error(T->ptr[1]->pos, T->ptr[1]->type_id, "参数名重复定义");
@@ -652,6 +690,25 @@ void semantic_Analysis(struct node *T) {
                 T->width += T->ptr[0]->width;
                 T->code = T->ptr[0]->code;
             }
+            // if (T->ptr[1]) {
+            //     T->ptr[1]->offset = T->offset + T->width;
+            //     strcpy(T->ptr[1]->Snext, T->Snext); //S.next属性向下传递
+            //     semantic_Analysis(T->ptr[1]);       //处理复合语句的语句序列
+            //     T->width += T->ptr[1]->width;
+            //     T->code = merge(2, T->code, T->ptr[1]->code);
+            // }
+            prn_symbol();       //c在退出一个符合语句前显示的符号表
+            LEV--;    //出复合语句，层号减1
+            // symbolTable.index = symbol_scope_TX.TX[--symbol_scope_TX.top]; //删除该作用域中的符号
+            scope_stack.idx--;
+            break;
+        case COMP_LIST:
+            if (T->ptr[0]) {
+                T->ptr[0]->offset = T->offset;
+                semantic_Analysis(T->ptr[0]);
+                T->code = T->ptr[0]->code;
+                T->width += T->ptr[0]->width;
+            }
             if (T->ptr[1]) {
                 T->ptr[1]->offset = T->offset + T->width;
                 strcpy(T->ptr[1]->Snext, T->Snext); //S.next属性向下传递
@@ -659,10 +716,6 @@ void semantic_Analysis(struct node *T) {
                 T->width += T->ptr[1]->width;
                 T->code = merge(2, T->code, T->ptr[1]->code);
             }
-            prn_symbol();       //c在退出一个符合语句前显示的符号表
-            LEV--;    //出复合语句，层号减1
-            // symbolTable.index = symbol_scope_TX.TX[--symbol_scope_TX.top]; //删除该作用域中的符号
-            scope_stack.idx--;
             break;
         case VAR_DEC_LIST:
             T->code = NULL;
@@ -687,7 +740,7 @@ void semantic_Analysis(struct node *T) {
             T->code = T->ptr[1]->code;
             T->width = T->ptr[1]->width;
             break;
-        case STM_LIST:
+        case STM_LIST:  // TODO: check
             if (!T->ptr[0]) {
                 T->code = NULL;    //空语句序列
                 T->width = 0;
@@ -704,7 +757,7 @@ void semantic_Analysis(struct node *T) {
             if (T->ptr[1]) {    //2条以上语句连接,S.next属性向下传递
                 strcpy(T->ptr[1]->Snext, T->Snext);
                 T->ptr[1]->offset = T->offset; //顺序结构共享单元方式
-//                  T->ptr[1]->offset=T->offset+T->ptr[0]->width; //顺序结构顺序分配单元方式
+                // T->ptr[1]->offset = T->offset + T->ptr[0]->width; //顺序结构顺序分配单元方式
                 semantic_Analysis(T->ptr[1]);
                 //序列中第1条为表达式语句，返回语句，复合语句时，第2条前不需要标号
                 if (T->ptr[0]->kind == RETURN || T->ptr[0]->kind == EXP_STMT || T->ptr[0]->kind == COMP_STM)
@@ -712,7 +765,7 @@ void semantic_Analysis(struct node *T) {
                 else
                     T->code = merge(3, T->code, genLabel(T->ptr[0]->Snext), T->ptr[1]->code);
                 if (T->ptr[1]->width > T->width) T->width = T->ptr[1]->width; //顺序结构共享单元方式
-//                        T->width+=T->ptr[1]->width;//顺序结构顺序分配单元方式
+                T->width += T->ptr[1]->width; //顺序结构顺序分配单元方式
             }
             break;
         case IF_THEN:

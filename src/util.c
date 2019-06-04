@@ -1,4 +1,5 @@
 #include "../include/util.h"
+#include "../include/def.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -81,4 +82,35 @@ char atoc(char* str) {
             return (char)otod(str + 2);
     }
     return '\0';
+}
+
+int str_to_op(char* str, int flag) {
+    if (flag == 0) {
+        if (strcmp(str, "<") == 0)
+            return JL;
+        else if (strcmp(str, "<=") == 0)
+            return JLE;
+        else if (strcmp(str, ">") == 0)
+            return JG;
+        else if (strcmp(str, ">=") == 0)
+            return JGE;
+        else if (strcmp(str, "==") == 0)
+            return JE;
+        else if (strcmp(str, "!=") == 0)
+            return JNE;
+    } else {
+        if (strcmp(str, "<") == 0)
+            return JLF;
+        else if (strcmp(str, "<=") == 0)
+            return JLEF;
+        else if (strcmp(str, ">") == 0)
+            return JGF;
+        else if (strcmp(str, ">=") == 0)
+            return JGEF;
+        else if (strcmp(str, "==") == 0)
+            return JEF;
+        else if (strcmp(str, "!=") == 0)
+            return JNEF;
+    }
+    return -1;
 }

@@ -31,12 +31,18 @@ enum node_kind  {
     CALL,
     LABEL,
     GOTO,
-    JLT,
+    JL,
     JLE,
-    JGT,
+    JG,
     JGE,
-    EQ,
-    NEQ
+    JE,
+    JNE,
+    JLF,
+    JLEF,
+    JGF,
+    JGEF,
+    JEF,
+    JNEF
 };
 #define MAXLENGTH   1000    //定义符号表的大小
 #define DX 3*sizeof(int)          //活动记录控制信息需要的单元数
@@ -72,6 +78,7 @@ typedef struct {  //这里只列出了一个符号表项的部分属性，没考
     //或函数活动记录大小，目标代码生成时使用
     //其它...
     UT_hash_handle hh;
+    int func_def;
 } symbol_t;
 //符号表，是一个顺序栈，index初值为0
 // struct symboltable {
@@ -103,6 +110,7 @@ struct node {    //以下对结点属性定义没有考虑存储效率，只是�
     int offset;                   //偏移量
     int width;                   //各种数据占用的字节数
     int num;
+    int func_def;
 };
 
 struct node *mknode(int kind, struct node *first, struct node *second, struct node *third, int pos );
