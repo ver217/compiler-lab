@@ -122,52 +122,52 @@ void prnIR(struct codenode *head) {
                    h->op == PLUS ? '+' : h->op == MINUS ? '-' : h->op == STAR ? '*' : '\\', opnstr2);
             break;
         case FUNCTION:
-            printf("\nFUNCTION %s :\n", h->result.id);
+            printf("\nfunction %s :\n", h->result.id);
             break;
         case PARAM:
-            printf("  PARAM %s\n", h->result.id);
+            printf("  param %s\n", h->result.id);
             break;
         case LABEL:
-            printf("LABEL %s :\n", h->result.id);
+            printf("%s:\n", h->result.id);
             break;
         case GOTO:
-            printf("  GOTO %s\n", h->result.id);
+            printf("  goto %s\n", h->result.id);
             break;
         case JLE:
-            printf("  IF %s <= %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  if %s <= %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JL:
-            printf("  IF %s < %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  if %s < %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JGE:
-            printf("  IF %s >= %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  if %s >= %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JG:
-            printf("  IF %s > %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  if %s > %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JE:
-            printf("  IF %s == %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  if %s == %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JNE:
-            printf("  IF %s != %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  if %s != %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JLEF:
-            printf("  IF %s <= %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  ifFalse %s <= %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JLF:
-            printf("  IF %s < %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  ifFalse %s < %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JGEF:
-            printf("  IF %s >= %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  ifFalse %s >= %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JGF:
-            printf("  IF %s > %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  ifFalse %s > %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JEF:
-            printf("  IF %s == %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  ifFalse %s == %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JNEF:
-            printf("  IF %s != %s GOTO %s\n", opnstr1, opnstr2, resultstr);
+            printf("  ifFalse %s != %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case ARG:
             printf("  ARG %s\n", h->result.id);
@@ -686,6 +686,7 @@ void semantic_Analysis(struct node *T) {
             T->code = NULL;
             if (T->ptr[0]) {
                 T->ptr[0]->offset = T->offset;
+                strcpy(T->ptr[0]->Snext, T->Snext); //S.next属性向下传递
                 semantic_Analysis(T->ptr[0]);  //处理该层的局部变量DEF_LIST
                 T->width += T->ptr[0]->width;
                 T->code = T->ptr[0]->code;
@@ -705,6 +706,7 @@ void semantic_Analysis(struct node *T) {
         case COMP_LIST:
             if (T->ptr[0]) {
                 T->ptr[0]->offset = T->offset;
+                strcpy(T->ptr[0]->Snext, T->Snext); //S.next属性向下传递
                 semantic_Analysis(T->ptr[0]);
                 T->code = T->ptr[0]->code;
                 T->width += T->ptr[0]->width;
@@ -769,15 +771,25 @@ void semantic_Analysis(struct node *T) {
             }
             break;
         case IF_THEN:
-            strcpy(T->ptr[0]->Btrue, newLabel()); //设置条件语句真假转移位置
+            // strcpy(T->ptr[0]->Btrue, newLabel()); //设置条件语句真假转移位置
+            // strcpy(T->ptr[0]->Bfalse, T->Snext);
+            // T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
+            // boolExp(T->ptr[0]);
+            // T->width = T->ptr[0]->width;
+            // strcpy(T->ptr[1]->Snext, T->Snext);
+            // semantic_Analysis(T->ptr[1]);      //if子句
+            // if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
+            // T->code = merge(3, T->ptr[0]->code, genLabel(T->ptr[0]->Btrue), T->ptr[1]->code);
+            strcpy(T->ptr[0]->Btrue, "fall");
+            strcpy(T->ptr[1]->Snext, T->Snext);
             strcpy(T->ptr[0]->Bfalse, T->Snext);
             T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
             boolExp(T->ptr[0]);
             T->width = T->ptr[0]->width;
-            strcpy(T->ptr[1]->Snext, T->Snext);
-            semantic_Analysis(T->ptr[1]);      //if子句
-            if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
-            T->code = merge(3, T->ptr[0]->code, genLabel(T->ptr[0]->Btrue), T->ptr[1]->code);
+            semantic_Analysis(T->ptr[1]);
+            if (T->width < T->ptr[1]->width)
+                T->width = T->ptr[1]->width;
+            T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
             break;  //控制语句都还没有处理offset和width属性
         case IF_THEN_ELSE:
             strcpy(T->ptr[0]->Btrue, newLabel()); //设置条件语句真假转移位置
