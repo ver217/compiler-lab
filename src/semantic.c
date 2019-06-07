@@ -2,6 +2,8 @@
 #include "../include/util.h"
 #include "../include/uthash.h"
 
+static int error = 0;
+
 symbol_t* new_symbol(char* name, char* alias, int level, int type, int flag, int offset) {
     symbol_t* symbol = (symbol_t*)malloc(sizeof(symbol_t));
     strcpy(symbol->name, name);
@@ -94,6 +96,8 @@ struct codenode *merge(int num, ...) {
 
 //输出中间代码
 void prnIR(struct codenode *head) {
+    if (error)
+        return;
     char opnstr1[32], opnstr2[32], resultstr[32];
     struct codenode *h = head;
     do {
@@ -188,8 +192,11 @@ void prnIR(struct codenode *head) {
 void semantic_error(int line, char *msg1, char *msg2) {
     //这里可以只收集错误信息，最后一次显示
     printf("在%d行,%s %s\n", line, msg1, msg2);
+    error = 1;
 }
-void prn_symbol() { //显示符号表 
+void prn_symbol() { //显示符号表
+    if (error)
+        return;
     printf("\n%-6s %-6s %-6s  %-6s %-4s %-6s\n", "var", "alias", "level", "type", "flag", "offset");
     for (symbol_t* symbol = scope_stack.symbol_tables[scope_stack.idx]; symbol != NULL; symbol = symbol->hh.next)
         printf("%-6s %-6s %-6d  %-6s %-4c %-6d\n", symbol->name, \
@@ -565,7 +572,7 @@ void semantic_Analysis(struct node *T) {
     int rtn, num, width;
     struct node *T0;
     struct opn opn1, opn2, result;
-    symbol_t* symbol;
+    symbol_t* symbol, *func_symbol;
     if (T) {
         switch (T->kind) {
         case EXT_STMT_LIST:
@@ -803,33 +810,20 @@ void semantic_Analysis(struct node *T) {
             T->width = T->ptr[0]->width;
             break;
         case RETURN:
+            for (num = scope_stack.idx; num >= 0; num--) {
+                func_symbol = NULL;
+                for (symbol = scope_stack.symbol_tables[num]; symbol != NULL; symbol = symbol->hh.next) {
+                    if (symbol->flag == 'F')
+                        func_symbol = symbol;
+                }
+                if (func_symbol != NULL)
+                    break;
+            }
             if (T->ptr[0]) {
                 T->ptr[0]->offset = T->offset;
                 Exp(T->ptr[0]);
-                // num = symbolTable.index;
-                // do num--;
-                // while (symbolTable.symbols[num].flag != 'F');
-                // if (T->ptr[0]->type != symbolTable.symbols[num].type) {
-                //     semantic_error(T->pos, "返回值类型错误", "");
-                //     T->width = 0;
-                //     T->code = NULL;
-                //     break;
-                // }
-                symbol_t* func_symbol = NULL;
-                for (num = scope_stack.idx; num >= 0; num--) {
-                    func_symbol = NULL;
-                    for (symbol = scope_stack.symbol_tables[num]; symbol != NULL; symbol = symbol->hh.next) {
-                        if (symbol->flag == 'F')
-                            func_symbol = symbol;
-                    }
-                    if (func_symbol != NULL)
-                        break;
-                }
-                if (func_symbol == NULL || T->ptr[0]->type != func_symbol->type) {
-                    if (func_symbol == NULL)
-                        semantic_error(T->pos, "在函数外return", "");
-                    else
-                        semantic_error(T->pos, "返回值类型错误", "");
+                if (T->ptr[0]->type != func_symbol->type) {
+                    semantic_error(T->pos, "返回值类型错误", "");
                     T->width = 0;
                     T->code = NULL;
                     break;
@@ -840,6 +834,12 @@ void semantic_Analysis(struct node *T) {
                 result.offset = T->ptr[0]->place->offset;
                 T->code = merge(2, T->ptr[0]->code, genIR(RETURN, opn1, opn2, result));
             } else {
+                if (func_symbol->type != VOID) {
+                    semantic_error(T->pos, "缺少返回值", "");
+                    T->width = 0;
+                    T->code = NULL;
+                    break;
+                }
                 T->width = 0;
                 result.kind = 0;
                 T->code = genIR(RETURN, opn1, opn2, result);

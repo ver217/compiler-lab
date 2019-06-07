@@ -50,6 +50,7 @@ inner_str ([^"\\\n]|\\['"?\\abfnrtv]|\\[0-7]{1,3}|\\[xX][0-9a-fA-F]+)*
 "int" |
 "float" |
 "char" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, TYPE); strcpy(yylval.type_id, yytext); return TYPE;}
+"void" { return VOID; }
 "return" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, RETURN); return RETURN;}
 "if" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, IF); return IF;}
 "else" { printf("%d: token:`%s`, type enum:%d\n", yylineno, yytext, ELSE); return ELSE;}

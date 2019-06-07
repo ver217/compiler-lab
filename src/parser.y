@@ -29,7 +29,7 @@ void display(struct node *,int);
 %token <type_id> ID TYPE CMP COMPASSIGN  //指定ID,CMP 的语义值是type_id，有词法分析得到的标识符字符串
 %token <type_float> FLOAT         //指定ID的语义值是type_id，有词法分析得到的标识符字符串
 %token <type_char> CHAR
-
+%token VOID
 %token AND OR NOT IF ELSE WHILE RETURN
 %token PLUS MINUS STAR DIV ASSIGNOP MOD
 %token INC DEC
@@ -77,10 +77,12 @@ FuncDec: ID '(' ParamList ')' { $$ = mknode(FUNC_DEC, $3, NULL, NULL, yylineno);
     | ID '(' ')' { $$ = mknode(FUNC_DEC, NULL, NULL, NULL, yylineno); strcpy($$->type_id, $1); } //函数名存放在$$->type_id
 ;
 FuncDecStmt: Specifier FuncDec ';' { $$ = $2; $$->ptr[1] = $1;}
+    | VOID FuncDec ';' { $$ =  $2; $$->ptr[1] = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->ptr[1]->type = VOID; }
 ;
 Stmt: Exp ';'    { $$=mknode(EXP_STMT,$1,NULL,NULL,yylineno); }
     | BlockStmt      {$$=$1;}      //复合语句结点直接最为语句结点，不再生成新的结点
     | RETURN Exp ';'   {$$=mknode(RETURN,$2,NULL,NULL,yylineno);}
+    | RETURN ';' {$$=mknode(RETURN,NULL,NULL,NULL,yylineno);}
     | IF '(' Exp ')' Stmt %prec LOWER_THEN_ELSE   {$$=mknode(IF_THEN,$3,$5,NULL,yylineno);}
     | IF '(' Exp ')' Stmt ELSE Stmt   {$$=mknode(IF_THEN_ELSE,$3,$5,$7,yylineno);}
     | WHILE '(' Exp ')' Stmt {$$=mknode(WHILE,$3,$5,NULL,yylineno);}
@@ -92,6 +94,7 @@ BlockInnerStmtList: { $$=NULL;}
 BlockStmt: '{' BlockInnerStmtList '}' {$$=mknode(COMP_STM,$2,NULL,NULL,yylineno);}
 ;
 FuncDef: Specifier FuncDec BlockStmt { $2->ptr[1] = $1; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
+    | VOID FuncDec BlockStmt { $$->ptr[1] = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->ptr[1]->type = VOID; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
 ;
 Exp: Var COMPASSIGN Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id, $2);}
     | Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符
