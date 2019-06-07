@@ -24,6 +24,7 @@ void display(struct node *,int);
 //  %type 定义非终结符的语义值类型
 %type <ptr> Program ExtStmtList ExtStmt Specifier Var VarDec VarDecList VarDecStmt ParamDec ParamList FuncDec FuncDecStmt Exp ArgList Stmt BlockStmt FuncDef
 %type <ptr> BlockInnerStmtList
+%type <ptr> VoidSpecifier
 //% token 定义终结符的语义值类型
 %token <type_int> INT              //指定INT的语义值是type_int，有词法分析得到的数值
 %token <type_id> ID TYPE CMP COMPASSIGN  //指定ID,CMP 的语义值是type_id，有词法分析得到的标识符字符串
@@ -58,6 +59,8 @@ ExtStmt: VarDecStmt { $$ = $1; $$->kind = EXT_VAR_DEF; }   //该结点对应一�
 ;
 Specifier: TYPE {$$ = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->type = resolve_type($1); strcpy($$->type_id, $1); }
 ;
+VoidSpecifier: VOID {$$ = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->type = VOID; strcpy($$->type_id, "void"); }
+;
 Var: ID {$$ = mknode(ID, NULL, NULL, NULL, yylineno); strcpy($$->type_id, $1); }
 ;
 VarDec: Var { $$ = $1; }
@@ -77,7 +80,7 @@ FuncDec: ID '(' ParamList ')' { $$ = mknode(FUNC_DEC, $3, NULL, NULL, yylineno);
     | ID '(' ')' { $$ = mknode(FUNC_DEC, NULL, NULL, NULL, yylineno); strcpy($$->type_id, $1); } //函数名存放在$$->type_id
 ;
 FuncDecStmt: Specifier FuncDec ';' { $$ = $2; $$->ptr[1] = $1;}
-    | VOID FuncDec ';' { $$ = $2; $$->ptr[1] = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->ptr[1]->type = VOID; }
+    | VoidSpecifier FuncDec ';' { $$ = $2; $$->ptr[1] = $1;}
 ;
 Stmt: Exp ';'    { $$=mknode(EXP_STMT,$1,NULL,NULL,yylineno); }
     | BlockStmt      {$$=$1;}      //复合语句结点直接最为语句结点，不再生成新的结点
@@ -94,7 +97,7 @@ BlockInnerStmtList: { $$=NULL;}
 BlockStmt: '{' BlockInnerStmtList '}' {$$=mknode(COMP_STM,$2,NULL,NULL,yylineno);}
 ;
 FuncDef: Specifier FuncDec BlockStmt { $2->ptr[1] = $1; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
-    | VOID FuncDec BlockStmt { $2->ptr[1] = mknode(TYPE, NULL, NULL, NULL, yylineno); $2->ptr[1]->type = VOID; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
+    | VoidSpecifier FuncDec BlockStmt { $2->ptr[1] = $1; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
 ;
 Exp: Var COMPASSIGN Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id, $2);}
     | Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符

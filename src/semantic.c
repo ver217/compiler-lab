@@ -177,7 +177,10 @@ void prnIR(struct codenode *head) {
             printf("  ARG %s\n", h->result.id);
             break;
         case CALL:
-            printf("  %s = CALL %s\n", resultstr, opnstr1);
+            if (strlen(resultstr) > 0)
+                printf("  %s = CALL %s\n", resultstr, opnstr1);
+            else
+                printf("  CALL %s\n", opnstr1);
             break;
         case RETURN:
             if (h->result.kind)
@@ -274,7 +277,7 @@ int  match_param(symbol_t* symbol, struct node *T) {
     int num = symbol->paramnum;
     int type1, type2, pos = -1;
     if (num == 0 && T == NULL) return 1;
-    for (symbol_t* s = symbol; s != NULL, num > 0; s = s->hh.next, num--) {
+    for (symbol_t* s = symbol->hh.next; s != NULL, num > 0; s = s->hh.next, num--) {
         if (!T) {
             semantic_error(pos, "", "函数调用参数太少");
             return 0;
@@ -521,6 +524,10 @@ void Exp(struct node *T) {  // TODO: check
                 semantic_error(T->pos, T->type_id, "不是一个函数");
                 break;
             }
+            if (symbol->func_def == 0) {
+                semantic_error(T->pos, T->type_id, "函数未定义");
+                break;
+            }
             T->type = symbol->type;
             width = T->type == INT ? 4 : 8; //存放函数返回值的单数字节数
             if (T->ptr[0]) {
@@ -542,13 +549,18 @@ void Exp(struct node *T) {  // TODO: check
                 T->code = merge(2, T->code, genIR(ARG, opn1, opn2, result));
                 T0 = T0->ptr[1];
             }
-            T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->width - width);
             opn1.kind = ID;
             strcpy(opn1.id, T->type_id); //保存函数名
             opn1.offset = rtn; //这里offset用以保存函数定义入口,在目标代码生成时，能获取相应信息
-            result.kind = ID;
-            strcpy(result.id, T->place->alias);
-            result.offset = T->place->offset;
+            if (T->type != VOID) {
+                T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->width - width);
+                result.kind = ID;
+                strcpy(result.id, T->place->alias);
+                result.offset = T->place->offset;
+            } else {
+                result.kind = ID;
+                strcpy(result.id, "");
+            }
             T->code = merge(2, T->code, genIR(CALL, opn1, opn2, result)); //生成函数调用中间代码
             break;
         case ARGS:      //此处仅处理各实参表达式的求值的代码序列，不生成ARG的实参系列
@@ -595,7 +607,7 @@ void semantic_Analysis(struct node *T) {
             T->width = T->ptr[1]->width;
             break;
         case FUNC_DEF:      //填写函数定义信息到符号表
-            T->ptr[0]->type = resolve_type(T->ptr[0]->ptr[1]->type_id); //获取函数返回类型送到含函数名、参数的结点
+            T->ptr[0]->type = T->ptr[0]->ptr[1]->type; //获取函数返回类型送到含函数名、参数的结点
             T->width = 0;   //函数的宽度设置为0，不会对外部变量的地址分配产生影响
             T->offset = DX; //设置局部变量在活动记录中的偏移量初值
             T->ptr[0]->func_def = 1;

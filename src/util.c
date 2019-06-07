@@ -8,8 +8,10 @@ int resolve_type(char* str) {
         return INT;
     else if (strcmp(str, "float") == 0)
         return FLOAT;
-    else
+    else if (strcmp(str, "char") == 0)
         return CHAR;
+    else
+        return VOID;
 }
 
 // hex to decimal
