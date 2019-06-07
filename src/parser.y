@@ -77,7 +77,7 @@ FuncDec: ID '(' ParamList ')' { $$ = mknode(FUNC_DEC, $3, NULL, NULL, yylineno);
     | ID '(' ')' { $$ = mknode(FUNC_DEC, NULL, NULL, NULL, yylineno); strcpy($$->type_id, $1); } //函数名存放在$$->type_id
 ;
 FuncDecStmt: Specifier FuncDec ';' { $$ = $2; $$->ptr[1] = $1;}
-    | VOID FuncDec ';' { $$ =  $2; $$->ptr[1] = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->ptr[1]->type = VOID; }
+    | VOID FuncDec ';' { $$ = $2; $$->ptr[1] = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->ptr[1]->type = VOID; }
 ;
 Stmt: Exp ';'    { $$=mknode(EXP_STMT,$1,NULL,NULL,yylineno); }
     | BlockStmt      {$$=$1;}      //复合语句结点直接最为语句结点，不再生成新的结点
@@ -94,7 +94,7 @@ BlockInnerStmtList: { $$=NULL;}
 BlockStmt: '{' BlockInnerStmtList '}' {$$=mknode(COMP_STM,$2,NULL,NULL,yylineno);}
 ;
 FuncDef: Specifier FuncDec BlockStmt { $2->ptr[1] = $1; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
-    | VOID FuncDec BlockStmt { $$->ptr[1] = mknode(TYPE, NULL, NULL, NULL, yylineno); $$->ptr[1]->type = VOID; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
+    | VOID FuncDec BlockStmt { $2->ptr[1] = mknode(TYPE, NULL, NULL, NULL, yylineno); $2->ptr[1]->type = VOID; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
 ;
 Exp: Var COMPASSIGN Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id, $2);}
     | Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符
