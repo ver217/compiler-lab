@@ -189,8 +189,8 @@ void semantic_error(int line, char *msg1, char *msg2) {
     //这里可以只收集错误信息，最后一次显示
     printf("在%d行,%s %s\n", line, msg1, msg2);
 }
-void prn_symbol() { //显示符号表
-    printf("%-6s %-6s %-6s  %-6s %-4s %-6s\n", "var", "alias", "level", "type", "flag", "offset");
+void prn_symbol() { //显示符号表 
+    printf("\n%-6s %-6s %-6s  %-6s %-4s %-6s\n", "var", "alias", "level", "type", "flag", "offset");
     for (symbol_t* symbol = scope_stack.symbol_tables[scope_stack.idx]; symbol != NULL; symbol = symbol->hh.next)
         printf("%-6s %-6s %-6d  %-6s %-4c %-6d\n", symbol->name, \
                symbol->alias, symbol->level, \
@@ -263,27 +263,28 @@ void ext_var_list(struct node *T) { //处理变量列表
     }
 }
 
-int  match_param(int i, struct node *T) {
-    // int j, num = symbolTable.symbols[i].paramnum;
-    // int type1, type2;
-    // if (num == 0 && T == NULL) return 1;
-    // for (j = 1; j <= num; j++) {
-    //     if (!T) {
-    //         semantic_error(T->pos, "", "函数调用参数太少");
-    //         return 0;
-    //     }
-    //     type1 = symbolTable.symbols[i + j].type; //形参类型
-    //     type2 = T->ptr[0]->type;
-    //     if (type1 != type2) {
-    //         semantic_error(T->pos, "", "参数类型不匹配");
-    //         return 0;
-    //     }
-    //     T = T->ptr[1];
-    // }
-    // if (T) { //num个参数已经匹配完，还有实参表达式
-    //     semantic_error(T->pos, "", "函数调用参数太多");
-    //     return 0;
-    // }
+int  match_param(symbol_t* symbol, struct node *T) {
+    int num = symbol->paramnum;
+    int type1, type2, pos = -1;
+    if (num == 0 && T == NULL) return 1;
+    for (symbol_t* s = symbol; s != NULL, num > 0; s = s->hh.next, num--) {
+        if (!T) {
+            semantic_error(pos, "", "函数调用参数太少");
+            return 0;
+        }
+        pos = T->pos;
+        type1 = s->type; //形参类型
+        type2 = T->ptr[0]->type;
+        if (type1 != type2) {
+            semantic_error(pos, "", "参数类型不匹配");
+            return 0;
+        }
+        T = T->ptr[1];
+    }
+    if (T) { //num个参数已经匹配完，还有实参表达式
+        semantic_error(T->pos, "", "函数调用参数太多");
+        return 0;
+    }
     return 1;
 }
 
@@ -399,7 +400,7 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
 }
 
 
-void Exp(struct node *T) {
+void Exp(struct node *T) {  // TODO: check
     //处理基本表达式，参考文献[2]p82的思想
     int rtn, num, width;
     struct node *T0;
@@ -524,7 +525,7 @@ void Exp(struct node *T) {
                 T->width = width;
                 T->code = NULL;
             }
-            // match_param(rtn, T->ptr[0]);  //处理所以参数的匹配
+            match_param(symbol, T->ptr[0]);  //处理所以参数的匹配
             //处理参数列表的中间代码
             T0 = T->ptr[0];
             while (T0) {
@@ -602,6 +603,7 @@ void semantic_Analysis(struct node *T) {
             T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genLabel(T->ptr[1]->Snext));     //函数体的代码作为函数的代码
             break;
         case FUNC_DEC:      //根据返回类型，函数名填写符号表
+            T->type = T->ptr[1]->type;
             symbol = searchSymbolTable(T->type_id);
             if (symbol != NULL) {
                 if (symbol->func_def == 1 && T->func_def == 1)
@@ -801,28 +803,47 @@ void semantic_Analysis(struct node *T) {
             T->width = T->ptr[0]->width;
             break;
         case RETURN:
-            // if (T->ptr[0]) {
-            //     T->ptr[0]->offset = T->offset;
-            //     Exp(T->ptr[0]);
-            //     num = symbolTable.index;
-            //     do num--;
-            //     while (symbolTable.symbols[num].flag != 'F');
-            //     if (T->ptr[0]->type != symbolTable.symbols[num].type) {
-            //         semantic_error(T->pos, "返回值类型错误", "");
-            //         T->width = 0;
-            //         T->code = NULL;
-            //         break;
-            //     }
-            //     T->width = T->ptr[0]->width;
-            //     result.kind = ID;
-            //     strcpy(result.id, symbolTable.symbols[T->ptr[0]->place].alias);
-            //     result.offset = symbolTable.symbols[T->ptr[0]->place].offset;
-            //     T->code = merge(2, T->ptr[0]->code, genIR(RETURN, opn1, opn2, result));
-            // } else {
-            //     T->width = 0;
-            //     result.kind = 0;
-            //     T->code = genIR(RETURN, opn1, opn2, result);
-            // }
+            if (T->ptr[0]) {
+                T->ptr[0]->offset = T->offset;
+                Exp(T->ptr[0]);
+                // num = symbolTable.index;
+                // do num--;
+                // while (symbolTable.symbols[num].flag != 'F');
+                // if (T->ptr[0]->type != symbolTable.symbols[num].type) {
+                //     semantic_error(T->pos, "返回值类型错误", "");
+                //     T->width = 0;
+                //     T->code = NULL;
+                //     break;
+                // }
+                symbol_t* func_symbol = NULL;
+                for (num = scope_stack.idx; num >= 0; num--) {
+                    func_symbol = NULL;
+                    for (symbol = scope_stack.symbol_tables[num]; symbol != NULL; symbol = symbol->hh.next) {
+                        if (symbol->flag == 'F')
+                            func_symbol = symbol;
+                    }
+                    if (func_symbol != NULL)
+                        break;
+                }
+                if (func_symbol == NULL || T->ptr[0]->type != func_symbol->type) {
+                    if (func_symbol == NULL)
+                        semantic_error(T->pos, "在函数外return", "");
+                    else
+                        semantic_error(T->pos, "返回值类型错误", "");
+                    T->width = 0;
+                    T->code = NULL;
+                    break;
+                }
+                T->width = T->ptr[0]->width;
+                result.kind = ID;
+                strcpy(result.id, T->ptr[0]->place->alias);
+                result.offset = T->ptr[0]->place->offset;
+                T->code = merge(2, T->ptr[0]->code, genIR(RETURN, opn1, opn2, result));
+            } else {
+                T->width = 0;
+                result.kind = 0;
+                T->code = genIR(RETURN, opn1, opn2, result);
+            }
             break;
         case ID:
         case INT:
