@@ -614,6 +614,46 @@ void Exp(struct node *T) {  // TODO: check
             T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(T->kind, opn1, opn2, result));
             T->width = T->ptr[0]->width + T->ptr[1]->width + (T->type == INT ? 4 : 8);
             break;
+        case INC:
+        case DEC:
+            if (T->ptr[0]->kind != ID)
+                semantic_error(T->pos, "", "自增、自减语句需要左值");
+            else {
+                T->code = NULL;
+                T->ptr[0]->offset = T->offset;
+                Exp(T->ptr[0]);
+                //判断T->ptr[0]，T->ptr[1]类型是否正确，可能根据运算符生成不同形式的代码，给T的type赋值
+                //下面的类型属性计算，没有考虑错误处理情况
+                T->width = T->ptr[0]->width;
+                T->type = T->ptr[0]->type;
+                opn1.kind = ID;
+                strcpy(opn1.id, T->ptr[0]->place->alias);
+                opn1.type = T->ptr[0]->type;
+                opn1.offset = T->ptr[0]->place->offset;
+                result.kind = ID;
+                result.type = T->type;
+                if (strncmp(T->type_id, "post", 4) == 0) {
+                    T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset);  // TODO: width
+                    strcpy(result.id, T->place->alias);
+                    result.offset = T->place->offset;
+                    T->code = merge(2, T->ptr[0]->code, genIR(ASSIGNOP, opn1, opn2, result));
+                    T->width += 4;
+                } else
+                    T->place = T->ptr[0]->place;
+                opn2.kind = T->type;
+                if (T->type == INT)
+                    opn2.const_int = 1;
+                else if (T->type == FLOAT)
+                    opn2.const_float = 1.0;
+                else
+                    opn2.const_char = 1;
+                opn2.type = T->type;
+                opn2.offset = T->ptr[0]->place->offset;
+                strcpy(result.id, T->ptr[0]->place->alias);
+                result.offset = T->ptr[0]->place->offset;
+                T->code = merge(2, T->code, genIR(T->type_id[5] == '+' ? PLUS : MINUS, opn1, opn2, result));
+            }
+            break;
         case NOT:
         case UMINUS:
             T->ptr[0]->offset = T->offset;
@@ -962,6 +1002,8 @@ void semantic_Analysis(struct node *T) {
         case NOT:
         case UMINUS:
         case FUNC_CALL:
+        case INC:
+        case DEC:
             Exp(T);          //处理基本表达式
             break;
         }
