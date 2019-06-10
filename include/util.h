@@ -10,3 +10,5 @@ int htod(char* str);
 int otod(char* str);
 
 int str_to_op(char* str, int flag);
+
+int resolve_aluop(char op);

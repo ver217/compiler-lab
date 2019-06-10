@@ -99,7 +99,7 @@ BlockStmt: '{' BlockInnerStmtList '}' {$$=mknode(COMP_STM,$2,NULL,NULL,yylineno)
 FuncDef: Specifier FuncDec BlockStmt { $2->ptr[1] = $1; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
     | VoidSpecifier FuncDec BlockStmt { $2->ptr[1] = $1; $$ = mknode(FUNC_DEF, $2, $3, NULL, yylineno); }
 ;
-Exp: Var COMPASSIGN Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id, $2);}
+Exp: Var COMPASSIGN Exp {$$=mknode(COMPASSIGN,$1,$3,NULL,yylineno);strcpy($$->type_id, $2);}
     | Var ASSIGNOP Exp {$$=mknode(ASSIGNOP,$1,$3,NULL,yylineno);strcpy($$->type_id,"'='");}//$$结点type_id空置未用，正好存放运算符
     | Var INC { $$=mknode(INC, $1, NULL, NULL, yylineno); strcpy($$->type_id, "post ++"); }
     | INC Var { $$=mknode(INC, $2, NULL, NULL, yylineno); strcpy($$->type_id, "pre ++"); }

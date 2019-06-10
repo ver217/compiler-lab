@@ -1,5 +1,6 @@
 #include "../include/util.h"
 #include "../include/def.h"
+#include "../output/parser.tab.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -115,4 +116,19 @@ int str_to_op(char* str, int flag) {
             return JNEF;
     }
     return -1;
+}
+
+int resolve_aluop(char op) {
+    switch (op) {
+    case '+':
+        return PLUS;
+    case '-':
+        return MINUS;
+    case '*':
+        return STAR;
+    case '/':
+        return DIV;
+    default:
+        return -1;
+    }
 }

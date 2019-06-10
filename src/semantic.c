@@ -524,6 +524,39 @@ void Exp(struct node *T) {  // TODO: check
                 T->code = merge(2, T->code, genIR(ASSIGNOP, opn1, opn2, result));
             }
             break;
+        case COMPASSIGN:
+            if (T->ptr[0]->kind != ID)
+                semantic_error(T->pos, "", "赋值语句需要左值");
+            else {
+                T->ptr[0]->offset = T->offset;
+                Exp(T->ptr[0]);
+                T->ptr[1]->offset = T->offset + T->ptr[0]->width;
+                Exp(T->ptr[1]);
+                //判断T->ptr[0]，T->ptr[1]类型是否正确，可能根据运算符生成不同形式的代码，给T的type赋值
+                //下面的类型属性计算，没有考虑错误处理情况
+                if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT)
+                    T->type = FLOAT;
+                else if (T->ptr[0]->type == INT || T->ptr[1]->type == INT)
+                    T->type = INT;
+                else
+                    T->type = CHAR;
+                T->place = T->ptr[0]->place;
+                opn1.kind = ID;
+                strcpy(opn1.id, T->ptr[0]->place->alias);
+                opn1.type = T->ptr[0]->type;
+                opn1.offset = T->ptr[0]->place->offset;
+                opn2.kind = ID;
+                strcpy(opn2.id, T->ptr[1]->place->alias);
+                opn2.type = T->ptr[1]->type;
+                opn2.offset = T->ptr[1]->place->offset;
+                result.kind = ID;
+                strcpy(result.id, T->place->alias);
+                result.type = T->type;
+                result.offset = T->place->offset;
+                T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(resolve_aluop(T->type_id[0]), opn1, opn2, result));
+                T->width = T->ptr[0]->width + T->ptr[1]->width;
+            }
+            break;
         case AND:   //按算术表达式方式计算布尔值，未写完
         case OR:    //按算术表达式方式计算布尔值，未写完
         case CMP: //按算术表达式方式计算布尔值，未写完
@@ -918,6 +951,7 @@ void semantic_Analysis(struct node *T) {
         case FLOAT:
         case CHAR:
         case ASSIGNOP:
+        case COMPASSIGN:
         case AND:
         case OR:
         case CMP:

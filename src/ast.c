@@ -140,6 +140,7 @@ void display(struct node *T, int indent)  { //对抽象语法树的先根遍历
             printf("%*cCHAR：%c\n", indent, ' ', T->type_char);
             break;
         case ASSIGNOP:
+        case COMPASSIGN:
         case AND:
         case OR:
         case CMP:
