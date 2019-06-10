@@ -221,6 +221,9 @@ void prnIR(struct codenode *head) {
             case JE:
                 printf("  %s = %s == %s\n", resultstr, opnstr1, opnstr2);
                 break;
+            case JNE:
+                printf("  %s = %s != %s\n", resultstr, opnstr1, opnstr2);
+                break;
             }
         }
         h = h->next;
@@ -315,6 +318,7 @@ void ext_var_list(struct node *T) { //处理变量列表
         strcpy(result.id, T->ptr[0]->place->alias);
         result.offset = T->ptr[0]->place->offset;
         result.level = LEV;
+        result.type = T->type;
         T->code = merge(3, T->code, T->ptr[1]->code, genIR(ASSIGNOP, opn1, opn2, result));
         T->width = T->ptr[1]->offset + T->ptr[1]->width;
         break;
@@ -386,6 +390,7 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
                 result.kind = ID;
                 strcpy(result.id, T->Btrue);
                 result.level = LEV;
+                result.type = T->type;
                 T->code = genIR(JNE, opn1, opn2, result);
                 T->code = merge(2, T->code, genGoto(T->Bfalse));
             }
@@ -404,9 +409,11 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
             strcpy(opn1.id, T->ptr[0]->place->alias);
             opn1.offset = T->ptr[0]->place->offset;
             opn1.level = LEV;
+            opn1.type = T->ptr[0]->type;
             opn2.kind = ID;
             strcpy(opn2.id, T->ptr[1]->place->alias);
             opn2.offset = T->ptr[1]->place->offset;
+            opn2.type = T->ptr[1]->type;
             result.kind = ID;
             result.level = LEV;
             if (strcmp(T->Btrue, "fall") != 0 && strcmp(T->Bfalse, "fall") != 0) {
@@ -499,6 +506,8 @@ void Exp(struct node *T) {
             result.kind = ID;
             strcpy(result.id, T->place->alias);
             result.offset = T->offset;
+            result.level = LEV;
+            result.type = T->type;
             T->code = genIR(ASSIGNOP, opn1, opn2, result);
             T->width = 4;
             break;
@@ -510,6 +519,8 @@ void Exp(struct node *T) {
             result.kind = ID;
             strcpy(result.id, T->place->alias);
             result.offset = T->offset;
+            result.level = LEV;
+            result.type = T->type;
             T->code = genIR(ASSIGNOP, opn1, opn2, result);
             T->width = 4;
             break;
@@ -521,6 +532,8 @@ void Exp(struct node *T) {
             result.kind = ID;
             strcpy(result.id, T->place->alias);
             result.offset = T->offset;
+            result.level = LEV;
+            result.type = T->type;
             T->code = genIR(ASSIGNOP, opn1, opn2, result);
             T->width = 1;
             break;
@@ -542,6 +555,7 @@ void Exp(struct node *T) {
                 result.level = LEV;
                 strcpy(result.id, T->ptr[0]->place->alias);
                 result.offset = T->ptr[0]->place->offset;
+                result.type = T->type;
                 T->code = merge(2, T->code, genIR(ASSIGNOP, opn1, opn2, result));
             }
             break;
@@ -577,13 +591,14 @@ void Exp(struct node *T) {
                 strcpy(result.id, T->place->alias);
                 result.type = T->type;
                 result.offset = T->place->offset;
+                result.type = T->type;
                 T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(resolve_aluop(T->type_id[0]), opn1, opn2, result));
                 T->width = T->ptr[0]->width + T->ptr[1]->width;
             }
             break;
-        case AND:   //按算术表达式方式计算布尔值，未写完
-        case OR:    //按算术表达式方式计算布尔值，未写完
-        case CMP: //按算术表达式方式计算布尔值，未写完
+        case AND:
+        case OR:
+        case CMP:
             T->type = INT;
             T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
             Exp(T->ptr[0]);
@@ -737,17 +752,20 @@ void Exp(struct node *T) {
                 result.kind = ID;
                 strcpy(result.id, T0->ptr[0]->place->alias);
                 result.offset = T0->ptr[0]->place->offset;
+                result.type = T0->ptr[0]->place->type;
                 T->code = merge(2, T->code, genIR(ARG, opn1, opn2, result));
                 T0 = T0->ptr[1];
             }
             opn1.kind = ID;
             opn1.level = LEV;
             strcpy(opn1.id, T->type_id); //保存函数名
-            opn1.offset = symbol->offset; //这里offset用以保存函数定义入口,在目标代码生成时，能获取相应信息
+            // opn1.offset = symbol->offset; //这里offset用以保存函数定义入口,在目标代码生成时，能获取相应信息
+            opn1.func_symbol = symbol;
             if (T->type != VOID) {
                 T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->width - width);
                 result.kind = ID;
                 strcpy(result.id, T->place->alias);
+                result.type = T->place->type;
                 result.offset = T->place->offset;
             } else {
                 result.kind = ID;
@@ -833,7 +851,8 @@ void semantic_Analysis(struct node *T) {
             T->place = symbol;
             result.kind = ID;
             strcpy(result.id, T->type_id);
-            result.offset = symbol->offset;
+            // result.offset = symbol->offset;
+            result.func_symbol = symbol;
             T->code = genIR(FUNCTION, opn1, opn2, result); //生成中间代码：FUNCTION 函数名
             T->offset = DX; //设置形式参数在活动记录中的偏移量初值
             if (T->ptr[0]) { //判断是否有参数
@@ -869,6 +888,7 @@ void semantic_Analysis(struct node *T) {
             result.kind = ID;
             strcpy(result.id, symbol->alias);
             result.offset = T->offset;
+            result.type = T->type;
             T->code = genIR(PARAM, opn1, opn2, result); //生成：FUNCTION 函数名
             break;
         case COMP_STM:
@@ -1015,6 +1035,7 @@ void semantic_Analysis(struct node *T) {
                 result.kind = ID;
                 strcpy(result.id, T->ptr[0]->place->alias);
                 result.offset = T->ptr[0]->place->offset;
+                result.type = func_symbol->type;
                 T->code = merge(2, T->ptr[0]->code, genIR(RETURN, opn1, opn2, result));
             } else {
                 if (func_symbol->type != VOID) {
@@ -1025,6 +1046,7 @@ void semantic_Analysis(struct node *T) {
                 }
                 T->width = 0;
                 result.kind = 0;
+                result.type = func_symbol->type;
                 T->code = genIR(RETURN, opn1, opn2, result);
             }
             break;
@@ -1067,5 +1089,5 @@ void semantic_Analysis0(struct node *T) {
     semantic_Analysis(T);
     prn_symbol();
     prnIR(T->code);
-    // objectCode(T->code);
+    objectCode(T->code, scope_stack.symbol_tables[0], stdout);
 }
