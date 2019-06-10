@@ -45,7 +45,8 @@ enum node_kind  {
     JNEF
 };
 #define MAXLENGTH   1000    //定义符号表的大小
-#define DX 3*sizeof(int)          //活动记录控制信息需要的单元数
+// #define DX 3*sizeof(int)          //活动记录控制信息需要的单元数
+#define DX 0
 //以下语法树结点类型、三地址结点类型等定义仅供参考，实验时一定要根据自己的理解来定义
 struct opn {
     int kind;                  //标识操作的类型
@@ -119,7 +120,7 @@ void semantic_Analysis0(struct node *T);
 void semantic_Analysis(struct node *T);
 void boolExp(struct node *T);
 void Exp(struct node *T);
-void objectCode(struct codenode *head);
+void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp);
 
 struct {
     symbol_t* symbol_tables[MAXLENGTH];

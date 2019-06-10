@@ -250,11 +250,11 @@ void prn_symbol() { //显示符号表
 }
 
 symbol_t* searchSymbolTable(char *name) {
-    symbol_t* symbol_table;
+    symbol_t* symbol;
     for (int i = scope_stack.idx; i >= 0; i--) {
-        HASH_FIND_STR(scope_stack.symbol_tables[i], name, symbol_table);
-        if (symbol_table != NULL)
-            return symbol_table;
+        HASH_FIND_STR(scope_stack.symbol_tables[i], name, symbol);
+        if (symbol != NULL)
+            return symbol;
     }
     return NULL;
 }
@@ -283,8 +283,8 @@ int LEV = 0;    //层号
 int func_size;  //1个函数的活动记录大小
 
 void ext_var_list(struct node *T) { //处理变量列表
-    int rtn, num = 1;
-    int width = T->type == INT ? 4 : 8; //一个变量宽度
+    int num = 1;
+    int width = resolve_size(T->type); //一个变量宽度
     struct opn opn1, opn2, result;
     symbol_t* symbol;
     switch (T->kind) {
@@ -309,10 +309,14 @@ void ext_var_list(struct node *T) { //处理变量列表
         Exp(T->ptr[1]);
         opn1.kind = ID;
         strcpy(opn1.id, T->ptr[1]->place->alias);
+        opn1.offset = T->ptr[1]->place->offset;
+        opn1.level = LEV;
         result.kind = ID;
         strcpy(result.id, T->ptr[0]->place->alias);
+        result.offset = T->ptr[0]->place->offset;
+        result.level = LEV;
         T->code = merge(3, T->code, T->ptr[1]->code, genIR(ASSIGNOP, opn1, opn2, result));
-        T->width = T->ptr[0]->offset + T->ptr[1]->width;    // TODO: check
+        T->width = T->ptr[1]->offset + T->ptr[1]->width;
         break;
     }
 }
@@ -345,7 +349,6 @@ int  match_param(symbol_t* symbol, struct node *T) {
 void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
     struct opn opn1, opn2, result;
     int op;
-    int rtn;
     symbol_t* symbol;
     if (T) {
         switch (T->kind) {
@@ -377,29 +380,35 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
                 opn1.kind = ID;
                 strcpy(opn1.id, symbol->alias);
                 opn1.offset = symbol->offset;
+                opn1.level = LEV;
                 opn2.kind = INT;
                 opn2.const_int = 0;
                 result.kind = ID;
                 strcpy(result.id, T->Btrue);
+                result.level = LEV;
                 T->code = genIR(JNE, opn1, opn2, result);
                 T->code = merge(2, T->code, genGoto(T->Bfalse));
             }
             T->width = 0;
             break;
         case CMP: //处理关系运算表达式,2个操作数都按基本表达式处理
-            T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
+            T->ptr[0]->offset =  T->offset;
             Exp(T->ptr[0]);
             T->width = T->ptr[0]->width;
+            T->ptr[1]->offset = T->offset + T->width;
             Exp(T->ptr[1]);
-            if (T->width < T->ptr[1]->width)
-                T->width = T->ptr[1]->width;
+            // if (T->width < T->ptr[1]->width)
+            //     T->width = T->ptr[1]->width;
+            T->width += T->ptr[1]->width;
             opn1.kind = ID;
             strcpy(opn1.id, T->ptr[0]->place->alias);
             opn1.offset = T->ptr[0]->place->offset;
+            opn1.level = LEV;
             opn2.kind = ID;
             strcpy(opn2.id, T->ptr[1]->place->alias);
             opn2.offset = T->ptr[1]->place->offset;
             result.kind = ID;
+            result.level = LEV;
             if (strcmp(T->Btrue, "fall") != 0 && strcmp(T->Bfalse, "fall") != 0) {
                 strcpy(result.id, T->Btrue);
                 T->code = genIR(str_to_op(T->type_id, 0), opn1, opn2, result);
@@ -460,9 +469,9 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
 }
 
 
-void Exp(struct node *T) {  // TODO: check
+void Exp(struct node *T) {
     //处理基本表达式，参考文献[2]p82的思想
-    int rtn, num, width;
+    int num, width;
     struct node *T0;
     struct opn opn1, opn2, result;
     symbol_t* symbol;
@@ -526,9 +535,11 @@ void Exp(struct node *T) {  // TODO: check
                 T->width = T->ptr[1]->width;
                 T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
                 opn1.kind = ID;
+                opn1.level = LEV;
                 strcpy(opn1.id, T->ptr[1]->place->alias); //右值一定是个变量或临时变量
                 opn1.offset = T->ptr[1]->place->offset;
                 result.kind = ID;
+                result.level = LEV;
                 strcpy(result.id, T->ptr[0]->place->alias);
                 result.offset = T->ptr[0]->place->offset;
                 T->code = merge(2, T->code, genIR(ASSIGNOP, opn1, opn2, result));
@@ -552,14 +563,17 @@ void Exp(struct node *T) {  // TODO: check
                     T->type = CHAR;
                 T->place = T->ptr[0]->place;
                 opn1.kind = ID;
+                opn1.level = LEV;
                 strcpy(opn1.id, T->ptr[0]->place->alias);
                 opn1.type = T->ptr[0]->type;
                 opn1.offset = T->ptr[0]->place->offset;
                 opn2.kind = ID;
+                opn2.level = LEV;
                 strcpy(opn2.id, T->ptr[1]->place->alias);
                 opn2.type = T->ptr[1]->type;
                 opn2.offset = T->ptr[1]->place->offset;
                 result.kind = ID;
+                result.level = LEV;
                 strcpy(result.id, T->place->alias);
                 result.type = T->type;
                 result.offset = T->place->offset;
@@ -577,14 +591,17 @@ void Exp(struct node *T) {  // TODO: check
             Exp(T->ptr[1]);
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width + T->ptr[1]->width);
             opn1.kind = ID;
+            opn1.level = LEV;
             strcpy(opn1.id, T->ptr[0]->place->alias);
             opn1.type = T->ptr[0]->type;
             opn1.offset = T->ptr[0]->place->offset;
             opn2.kind = ID;
+            opn2.level = LEV;
             strcpy(opn2.id, T->ptr[1]->place->alias);
             opn2.type = T->ptr[1]->type;
             opn2.offset = T->ptr[1]->place->offset;
             result.kind = ID;
+            result.level = LEV;
             strcpy(result.id, T->place->alias);
             result.type = T->type;
             result.offset = T->place->offset;
@@ -610,14 +627,17 @@ void Exp(struct node *T) {  // TODO: check
                 T->type = CHAR, T->width = T->ptr[0]->width + T->ptr[1]->width + 1;
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width + T->ptr[1]->width);
             opn1.kind = ID;
+            opn1.level = LEV;
             strcpy(opn1.id, T->ptr[0]->place->alias);
             opn1.type = T->ptr[0]->type;
             opn1.offset = T->ptr[0]->place->offset;
             opn2.kind = ID;
+            opn2.level = LEV;
             strcpy(opn2.id, T->ptr[1]->place->alias);
             opn2.type = T->ptr[1]->type;
             opn2.offset = T->ptr[1]->place->offset;
             result.kind = ID;
+            result.level = LEV;
             strcpy(result.id, T->place->alias);
             result.type = T->type;
             result.offset = T->place->offset;
@@ -637,10 +657,12 @@ void Exp(struct node *T) {  // TODO: check
                 T->width = T->ptr[0]->width;
                 T->type = T->ptr[0]->type;
                 opn1.kind = ID;
+                opn1.level = LEV;
                 strcpy(opn1.id, T->ptr[0]->place->alias);
                 opn1.type = T->ptr[0]->type;
                 opn1.offset = T->ptr[0]->place->offset;
                 result.kind = ID;
+                result.level = LEV;
                 result.type = T->type;
                 if (strncmp(T->type_id, "post", 4) == 0) {
                     T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset);  // TODO: width
@@ -672,10 +694,12 @@ void Exp(struct node *T) {  // TODO: check
             T->width = T->ptr[0]->width + (T->type == INT ? 4 : 8);
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width);
             opn1.kind = ID;
+            opn1.level = LEV;
             strcpy(opn1.id, T->ptr[0]->place->alias);
             opn1.type = T->ptr[0]->type;
             opn1.offset = T->ptr[0]->place->offset;
             result.kind = ID;
+            result.level = LEV;
             strcpy(result.id, T->place->alias);
             result.type = T->type;
             result.offset = T->place->offset;
@@ -717,8 +741,9 @@ void Exp(struct node *T) {  // TODO: check
                 T0 = T0->ptr[1];
             }
             opn1.kind = ID;
+            opn1.level = LEV;
             strcpy(opn1.id, T->type_id); //保存函数名
-            opn1.offset = rtn; //这里offset用以保存函数定义入口,在目标代码生成时，能获取相应信息
+            opn1.offset = symbol->offset; //这里offset用以保存函数定义入口,在目标代码生成时，能获取相应信息
             if (T->type != VOID) {
                 T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->width - width);
                 result.kind = ID;
@@ -728,6 +753,7 @@ void Exp(struct node *T) {  // TODO: check
                 result.kind = ID;
                 strcpy(result.id, "");
             }
+            result.level = LEV;
             T->code = merge(2, T->code, genIR(CALL, opn1, opn2, result)); //生成函数调用中间代码
             break;
         case ARGS:      //此处仅处理各实参表达式的求值的代码序列，不生成ARG的实参系列
@@ -748,7 +774,7 @@ void Exp(struct node *T) {  // TODO: check
 
 void semantic_Analysis(struct node *T) {
     //对抽象语法树的先根遍历,按display的控制结构修改完成符号表管理和语义检查和TAC生成（语句部分）
-    int rtn, num, width;
+    int num, width;
     struct node *T0;
     struct opn opn1, opn2, result;
     symbol_t* symbol, *func_symbol;
@@ -767,7 +793,6 @@ void semantic_Analysis(struct node *T) {
             break;
         case EXT_VAR_DEF:   //处理外部说明,将第一个孩子(TYPE结点)中的类型送到第二个孩子的类型域
             T->type = T->ptr[1]->type = resolve_type(T->ptr[0]->type_id);
-            T->ptr[1]->type = resolve_type(T->ptr[0]->type_id); //确定变量序列各变量类型
             T->ptr[1]->offset = T->offset;
             semantic_Analysis(T->ptr[1]);
             T->code = T->ptr[1]->code;
@@ -808,7 +833,7 @@ void semantic_Analysis(struct node *T) {
             T->place = symbol;
             result.kind = ID;
             strcpy(result.id, T->type_id);
-            // result.offset = rtn;
+            result.offset = symbol->offset;
             T->code = genIR(FUNCTION, opn1, opn2, result); //生成中间代码：FUNCTION 函数名
             T->offset = DX; //设置形式参数在活动记录中的偏移量初值
             if (T->ptr[0]) { //判断是否有参数
@@ -919,9 +944,10 @@ void semantic_Analysis(struct node *T) {
             strcpy(T->ptr[0]->Btrue, "fall");
             strcpy(T->ptr[1]->Snext, T->Snext);
             strcpy(T->ptr[0]->Bfalse, T->Snext);
-            T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
+            T->ptr[0]->offset = T->offset;
             boolExp(T->ptr[0]);
             T->width = T->ptr[0]->width;
+            T->ptr[1]->offset = T->offset + T->width;
             semantic_Analysis(T->ptr[1]);
             if (T->width < T->ptr[1]->width)
                 T->width = T->ptr[1]->width;
@@ -930,27 +956,33 @@ void semantic_Analysis(struct node *T) {
         case IF_THEN_ELSE:
             strcpy(T->ptr[0]->Btrue, "fall");
             strcpy(T->ptr[0]->Bfalse, newLabel());
-            T->ptr[0]->offset = T->ptr[1]->offset = T->ptr[2]->offset = T->offset;
+            T->ptr[0]->offset = T->offset;
             boolExp(T->ptr[0]);
             T->width = T->ptr[0]->width;
+            T->ptr[1]->offset = T->offset + T->width;
             strcpy(T->ptr[1]->Snext, T->Snext);
             semantic_Analysis(T->ptr[1]);
-            if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
+            T->width += T->ptr[1]->width;
+            T->ptr[2]->offset = T->offset + T->width;
+            // if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
             strcpy(T->ptr[2]->Snext, T->Snext);
             semantic_Analysis(T->ptr[2]);
-            if (T->width < T->ptr[2]->width) T->width = T->ptr[2]->width;
+            // if (T->width < T->ptr[2]->width) T->width = T->ptr[2]->width;
+            T->width += T->ptr[2]->width;
             T->code = merge(5, T->ptr[0]->code, T->ptr[1]->code, \
                             genGoto(T->Snext), genLabel(T->ptr[0]->Bfalse), T->ptr[2]->code);
             break;
         case WHILE:
             strcpy(T->ptr[0]->Btrue, "fall");
             strcpy(T->ptr[0]->Bfalse, T->Snext);
-            T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
+            T->ptr[0]->offset = T->offset;
             boolExp(T->ptr[0]);
             T->width = T->ptr[0]->width;
+            T->ptr[1]->offset = T->offset + T->width;
             strcpy(T->ptr[1]->Snext, newLabel());
             semantic_Analysis(T->ptr[1]);      //循环体
-            if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
+            T->width += T->ptr[1]->width;
+            // if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
             T->code = merge(4, genLabel(T->ptr[1]->Snext), T->ptr[0]->code, \
                             T->ptr[1]->code, genGoto(T->ptr[1]->Snext));
             break;
