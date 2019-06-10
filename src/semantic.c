@@ -105,12 +105,16 @@ void prnIR(struct codenode *head) {
             sprintf(opnstr1, "#%d", h->opn1.const_int);
         if (h->opn1.kind == FLOAT)
             sprintf(opnstr1, "#%f", h->opn1.const_float);
+        if (h->opn1.kind == CHAR)
+            sprintf(opnstr1, "#%c", h->opn1.const_char);
         if (h->opn1.kind == ID)
             sprintf(opnstr1, "%s", h->opn1.id);
         if (h->opn2.kind == INT)
             sprintf(opnstr2, "#%d", h->opn2.const_int);
         if (h->opn2.kind == FLOAT)
             sprintf(opnstr2, "#%f", h->opn2.const_float);
+        if (h->opn2.kind == CHAR)
+            sprintf(opnstr2, "#%c", h->opn2.const_char);
         if (h->opn2.kind == ID)
             sprintf(opnstr2, "%s", h->opn2.id);
         sprintf(resultstr, "%s", h->result.id);
@@ -347,6 +351,12 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
             else T->code = genGoto(T->Bfalse);
             T->width = 0;
             break;
+        case CHAR:
+            if (T->type_char != '\0')
+                T->code = genGoto(T->Btrue);
+            else T->code = genGoto(T->Bfalse);
+            T->width = 0;
+            break;
         case ID:    //查符号表，获得符号表中的位置，类型送type
             symbol = searchSymbolTable(T->type_id);
             if (symbol == NULL)
@@ -463,8 +473,8 @@ void Exp(struct node *T) {  // TODO: check
             }
             break;
         case INT:
-            T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset); //为整常量生成一个临时变量
             T->type = INT;
+            T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset); //为整常量生成一个临时变量
             opn1.kind = INT;
             opn1.const_int = T->type_int;
             result.kind = ID;
@@ -474,8 +484,8 @@ void Exp(struct node *T) {  // TODO: check
             T->width = 4;
             break;
         case FLOAT:
-            T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset); //为浮点常量生成一个临时变量
             T->type = FLOAT;
+            T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset); //为浮点常量生成一个临时变量
             opn1.kind = FLOAT;
             opn1.const_float = T->type_float;
             result.kind = ID;
@@ -484,6 +494,17 @@ void Exp(struct node *T) {  // TODO: check
             T->code = genIR(ASSIGNOP, opn1, opn2, result);
             T->width = 4;
             break;
+        case CHAR:
+            T->type = CHAR;
+            T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset); //为浮点常量生成一个临时变量
+            opn1.kind = CHAR;
+            opn1.const_char = T->type_char;
+            result.kind = ID;
+            strcpy(result.id, T->place->alias);
+            result.offset = T->offset;
+            T->code = genIR(ASSIGNOP, opn1, opn2, result);
+            T->width = 1;
+            break;
         case ASSIGNOP:
             if (T->ptr[0]->kind != ID)
                 semantic_error(T->pos, "", "赋值语句需要左值");
@@ -491,7 +512,7 @@ void Exp(struct node *T) {  // TODO: check
                 Exp(T->ptr[0]);   //处理左值，例中仅为变量
                 T->ptr[1]->offset = T->offset;
                 Exp(T->ptr[1]);
-                T->type = T->ptr[0]->type;
+                T->type = T->ptr[0]->type;  // TODO: 类型转换
                 T->width = T->ptr[1]->width;
                 T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
                 opn1.kind = ID;
@@ -540,7 +561,10 @@ void Exp(struct node *T) {  // TODO: check
             //下面的类型属性计算，没有考虑错误处理情况
             if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT)
                 T->type = FLOAT, T->width = T->ptr[0]->width + T->ptr[1]->width + 4;
-            else T->type = INT, T->width = T->ptr[0]->width + T->ptr[1]->width + 2;
+            else if (T->ptr[0]->type == INT || T->ptr[1]->type == INT)
+                T->type = INT, T->width = T->ptr[0]->width + T->ptr[1]->width + 2;
+            else
+                T->type = CHAR, T->width = T->ptr[0]->width + T->ptr[1]->width + 1;
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width + T->ptr[1]->width);
             opn1.kind = ID;
             strcpy(opn1.id, T->ptr[0]->place->alias);
@@ -892,6 +916,7 @@ void semantic_Analysis(struct node *T) {
         case ID:
         case INT:
         case FLOAT:
+        case CHAR:
         case ASSIGNOP:
         case AND:
         case OR:
