@@ -178,19 +178,19 @@ void prnIR(struct codenode *head) {
             printf("  ifFalse %s != %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case ARG:
-            printf("  ARG %s\n", h->result.id);
+            printf("  arg %s\n", h->result.id);
             break;
         case CALL:
             if (strlen(resultstr) > 0)
-                printf("  %s = CALL %s\n", resultstr, opnstr1);
+                printf("  %s = call %s\n", resultstr, opnstr1);
             else
-                printf("  CALL %s\n", opnstr1);
+                printf("  call %s\n", opnstr1);
             break;
         case RETURN:
             if (h->result.kind)
-                printf("  RETURN %s\n", resultstr);
+                printf("  return %s\n", resultstr);
             else
-                printf("  RETURN\n");
+                printf("  return\n");
             break;
         case NOT:
             printf("  %s = !%s\n", resultstr, opnstr1);
@@ -236,10 +236,17 @@ void prn_symbol() { //显示符号表
         return;
     printf("\n%-6s %-6s %-6s  %-6s %-4s %-6s\n", "var", "alias", "level", "type", "flag", "offset");
     for (symbol_t* symbol = scope_stack.symbol_tables[scope_stack.idx]; symbol != NULL; symbol = symbol->hh.next)
-        printf("%-6s %-6s %-6d  %-6s %-4c %-6d\n", symbol->name, \
-               symbol->alias, symbol->level, \
-               symbol->type == INT ? "int" : "float", \
-               symbol->flag, symbol->offset);
+        if (symbol->flag != 'T')
+            printf("%-6s %-6s %-6d  %-6s %-4c %-6d\n", symbol->name, \
+                   symbol->alias, symbol->level, \
+                   typeof(symbol->type), \
+                   symbol->flag, symbol->offset);
+        else {
+            printf("%-6s %-6s %-6d  %-6s %-4c %-6d\n", "", \
+                   symbol->alias, symbol->level, \
+                   typeof(symbol->type), \
+                   symbol->flag, symbol->offset);
+        }
 }
 
 symbol_t* searchSymbolTable(char *name) {
@@ -264,7 +271,10 @@ symbol_t* fillSymbolTable(char *name, char *alias, int level, int type, char fla
 
 //填写临时变量到符号表，返回临时变量在符号表中的位置
 symbol_t* fill_Temp(char *name, int level, int type, char flag, int offset) {
-    return new_symbol("", name, level, type, flag, offset);
+    // return new_symbol("", name, level, type, flag, offset);
+    char timestamp[30];
+    ltoa(current_timestamp(), timestamp);
+    return fillSymbolTable(timestamp, name, level, type, flag, offset);
 }
 
 

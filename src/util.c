@@ -3,6 +3,7 @@
 #include "../output/parser.tab.h"
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 int resolve_type(char* str) {
     if (strcmp(str, "int") == 0)
@@ -131,4 +132,28 @@ int resolve_aluop(char op) {
     default:
         return -1;
     }
+}
+
+int resolve_size(int TYPE) {
+    switch (TYPE) {
+    case INT:
+        return 4;
+    case FLOAT:
+        return 4;
+    case CHAR:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+long current_timestamp() {
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    return ts.tv_sec * 1000000000 + ts.tv_nsec;
+}
+
+char* ltoa(long num, char* str) {
+    sprintf(str, "%ld", num);
+    return str;
 }
