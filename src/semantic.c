@@ -188,6 +188,36 @@ void prnIR(struct codenode *head) {
             else
                 printf("  RETURN\n");
             break;
+        case NOT:
+            printf("  %s = !%s\n", resultstr, opnstr1);
+            break;
+        case UMINUS:
+            printf("  %s = -%s\n", resultstr, opnstr1);
+            break;
+        case AND:
+            printf("  %s = %s && %s\n", resultstr, opnstr1, opnstr2);
+            break;
+        case OR:
+            printf("  %s = %s || %s\n", resultstr, opnstr1, opnstr2);
+            break;
+        case CMP:
+            switch (h->result.cmp_type) {
+            case JLE:
+                printf("  %s = %s <= %s\n", resultstr, opnstr1, opnstr2);
+                break;
+            case JL:
+                printf("  %s = %s < %s\n", resultstr, opnstr1, opnstr2);
+                break;
+            case JGE:
+                printf("  %s = %s >= %s\n", resultstr, opnstr1, opnstr2);
+                break;
+            case JG:
+                printf("  %s = %s > %s\n", resultstr, opnstr1, opnstr2);
+                break;
+            case JE:
+                printf("  %s = %s == %s\n", resultstr, opnstr1, opnstr2);
+                break;
+            }
         }
         h = h->next;
     } while (h != head);
@@ -479,7 +509,24 @@ void Exp(struct node *T) {  // TODO: check
             T->type = INT;
             T->ptr[0]->offset = T->ptr[1]->offset = T->offset;
             Exp(T->ptr[0]);
+            T->ptr[1]->offset = T->offset + T->ptr[0]->width;
             Exp(T->ptr[1]);
+            T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width + T->ptr[1]->width);
+            opn1.kind = ID;
+            strcpy(opn1.id, T->ptr[0]->place->alias);
+            opn1.type = T->ptr[0]->type;
+            opn1.offset = T->ptr[0]->place->offset;
+            opn2.kind = ID;
+            strcpy(opn2.id, T->ptr[1]->place->alias);
+            opn2.type = T->ptr[1]->type;
+            opn2.offset = T->ptr[1]->place->offset;
+            result.kind = ID;
+            strcpy(result.id, T->place->alias);
+            result.type = T->type;
+            result.offset = T->place->offset;
+            result.cmp_type = str_to_op(T->type_id, 0);    // 存放运算符enum
+            T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(T->kind, opn1, opn2, result));
+            T->width = T->ptr[0]->width + T->ptr[1]->width + (T->type == INT ? 4 : 8);
             break;
         case PLUS:
         case MINUS:
@@ -510,9 +557,22 @@ void Exp(struct node *T) {  // TODO: check
             T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(T->kind, opn1, opn2, result));
             T->width = T->ptr[0]->width + T->ptr[1]->width + (T->type == INT ? 4 : 8);
             break;
-        case NOT:   //未写完整
-            break;
-        case UMINUS://未写完整
+        case NOT:
+        case UMINUS:
+            T->ptr[0]->offset = T->offset;
+            Exp(T->ptr[0]);
+            T->type = T->ptr[0]->type;
+            T->width = T->ptr[0]->width + (T->type == INT ? 4 : 8);
+            T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width);
+            opn1.kind = ID;
+            strcpy(opn1.id, T->ptr[0]->place->alias);
+            opn1.type = T->ptr[0]->type;
+            opn1.offset = T->ptr[0]->place->offset;
+            result.kind = ID;
+            strcpy(result.id, T->place->alias);
+            result.type = T->type;
+            result.offset = T->place->offset;
+            T->code = merge(2, T->ptr[0]->code, genIR(T->kind, opn1, opn2, result));
             break;
         case FUNC_CALL: //根据T->type_id查出函数的定义，如果语言中增加了实验教材的read，write需要单独处理一下
             symbol = searchSymbolTable(T->type_id);
@@ -748,34 +808,6 @@ void semantic_Analysis(struct node *T) {
             T->code = T->ptr[1]->code;
             T->width = T->ptr[1]->width;
             break;
-        // case STM_LIST:  // TODO: check
-        //     if (!T->ptr[0]) {
-        //         T->code = NULL;    //空语句序列
-        //         T->width = 0;
-        //         break;
-        //     }
-        //     if (T->ptr[1]) //2条以上语句连接，生成新标号作为第一条语句结束后到达的位置
-        //         strcpy(T->ptr[0]->Snext, newLabel());
-        //     else     //语句序列仅有一条语句，S.next属性向下传递
-        //         strcpy(T->ptr[0]->Snext, T->Snext);
-        //     T->ptr[0]->offset = T->offset;
-        //     semantic_Analysis(T->ptr[0]);
-        //     T->code = T->ptr[0]->code;
-        //     T->width = T->ptr[0]->width;
-        //     if (T->ptr[1]) {    //2条以上语句连接,S.next属性向下传递
-        //         strcpy(T->ptr[1]->Snext, T->Snext);
-        //         T->ptr[1]->offset = T->offset; //顺序结构共享单元方式
-        //         // T->ptr[1]->offset = T->offset + T->ptr[0]->width; //顺序结构顺序分配单元方式
-        //         semantic_Analysis(T->ptr[1]);
-        //         //序列中第1条为表达式语句，返回语句，复合语句时，第2条前不需要标号
-        //         if (T->ptr[0]->kind == RETURN || T->ptr[0]->kind == EXP_STMT || T->ptr[0]->kind == COMP_STM)
-        //             T->code = merge(2, T->code, T->ptr[1]->code);
-        //         else
-        //             T->code = merge(3, T->code, genLabel(T->ptr[0]->Snext), T->ptr[1]->code);
-        //         if (T->ptr[1]->width > T->width) T->width = T->ptr[1]->width; //顺序结构共享单元方式
-        //         T->width += T->ptr[1]->width; //顺序结构顺序分配单元方式
-        //     }
-        //     break;
         case IF_THEN:
             strcpy(T->ptr[0]->Btrue, "fall");
             strcpy(T->ptr[1]->Snext, T->Snext);

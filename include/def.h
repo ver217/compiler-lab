@@ -56,6 +56,7 @@ struct opn {
         char    const_char;    //字符常数值，立即数
         char    id[33];        //变量或临时变量的别名或标号字符串
     };
+    int cmp_type;
     int level;                 //变量的层号，0表示是全局变量，数据保存在静态数据区
     int offset;                 //变量单元偏移量，或函数在符号表的定义位置序号，目标代码生成时用
 };
