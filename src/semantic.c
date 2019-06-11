@@ -43,6 +43,15 @@ char *newTemp() {
     return strcat0("t", s);
 }
 
+void opn_init(struct opn* op_node, int kind, int type, int cmp_type, int level, int offset, symbol_t* func_symbol) {
+    op_node->kind = kind;
+    op_node->type = type;
+    op_node->cmp_type = cmp_type;
+    op_node->level = level;
+    op_node->offset = offset;
+    op_node->func_symbol = func_symbol;
+}
+
 //生成一条TAC代码的结点组成的双向循环链表，返回头指针
 struct codenode *genIR(int op, struct opn opn1, struct opn opn2, struct opn result) {
     struct codenode *h = (struct codenode *)malloc(sizeof(struct codenode));
@@ -310,15 +319,10 @@ void ext_var_list(struct node *T) { //处理变量列表
         T->num = T->ptr[0]->num + 1;
         T->ptr[1]->offset = T->ptr[0]->offset + T->ptr[0]->width;
         Exp(T->ptr[1]);
-        opn1.kind = ID;
         strcpy(opn1.id, T->ptr[1]->place->alias);
-        opn1.offset = T->ptr[1]->place->offset;
-        opn1.level = LEV;
-        result.kind = ID;
+        opn_init(&opn1, ID, T->ptr[1]->type, 0, T->ptr[1]->place->level, T->ptr[1]->place->offset, NULL);
         strcpy(result.id, T->ptr[0]->place->alias);
-        result.offset = T->ptr[0]->place->offset;
-        result.level = LEV;
-        result.type = T->type;
+        opn_init(&result, ID, T->ptr[0]->place->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
         T->code = merge(3, T->code, T->ptr[1]->code, genIR(ASSIGNOP, opn1, opn2, result));
         T->width = T->ptr[1]->offset + T->ptr[1]->width;
         break;
@@ -381,16 +385,12 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
             if (symbol->flag == 'F')
                 semantic_error(T->pos, T->type_id, "是函数名，类型不匹配");
             else {
-                opn1.kind = ID;
                 strcpy(opn1.id, symbol->alias);
-                opn1.offset = symbol->offset;
-                opn1.level = LEV;
-                opn2.kind = INT;
+                opn_init(&opn1, ID, symbol->type, 0, symbol->level, symbol->offset, NULL);
                 opn2.const_int = 0;
-                result.kind = ID;
+                opn_init(&opn2, INT, INT, 0, LEV, 0, NULL);
                 strcpy(result.id, T->Btrue);
-                result.level = LEV;
-                result.type = T->type;
+                opn_init(&result, ID, T->type, 0, LEV, T->offset, NULL);
                 T->code = genIR(JNE, opn1, opn2, result);
                 T->code = merge(2, T->code, genGoto(T->Bfalse));
             }
@@ -402,20 +402,12 @@ void boolExp(struct node *T) { //布尔表达式，参考文献[2]p84的思想
             T->width = T->ptr[0]->width;
             T->ptr[1]->offset = T->offset + T->width;
             Exp(T->ptr[1]);
-            // if (T->width < T->ptr[1]->width)
-            //     T->width = T->ptr[1]->width;
             T->width += T->ptr[1]->width;
-            opn1.kind = ID;
             strcpy(opn1.id, T->ptr[0]->place->alias);
-            opn1.offset = T->ptr[0]->place->offset;
-            opn1.level = LEV;
-            opn1.type = T->ptr[0]->type;
-            opn2.kind = ID;
+            opn_init(&opn1, ID, T->ptr[0]->place->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
             strcpy(opn2.id, T->ptr[1]->place->alias);
-            opn2.offset = T->ptr[1]->place->offset;
-            opn2.type = T->ptr[1]->type;
-            result.kind = ID;
-            result.level = LEV;
+            opn_init(&opn2, ID, T->ptr[1]->place->type, 0, T->ptr[1]->place->level, T->ptr[1]->place->offset, NULL);
+            opn_init(&result, ID, 0, 0, LEV, 0, NULL);
             if (strcmp(T->Btrue, "fall") != 0 && strcmp(T->Bfalse, "fall") != 0) {
                 strcpy(result.id, T->Btrue);
                 T->code = genIR(str_to_op(T->type_id, 0), opn1, opn2, result);
@@ -501,39 +493,30 @@ void Exp(struct node *T) {
         case INT:
             T->type = INT;
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset); //为整常量生成一个临时变量
-            opn1.kind = INT;
             opn1.const_int = T->type_int;
-            result.kind = ID;
+            opn_init(&opn1, INT, INT, 0, LEV, 0, NULL);
             strcpy(result.id, T->place->alias);
-            result.offset = T->offset;
-            result.level = LEV;
-            result.type = T->type;
+            opn_init(&result, ID, T->type, 0, LEV, T->offset, NULL);
             T->code = genIR(ASSIGNOP, opn1, opn2, result);
             T->width = 4;
             break;
         case FLOAT:
             T->type = FLOAT;
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset); //为浮点常量生成一个临时变量
-            opn1.kind = FLOAT;
             opn1.const_float = T->type_float;
-            result.kind = ID;
+            opn_init(&opn1, FLOAT, FLOAT, 0, LEV, 0, NULL);
             strcpy(result.id, T->place->alias);
-            result.offset = T->offset;
-            result.level = LEV;
-            result.type = T->type;
+            opn_init(&result, ID, T->type, 0, LEV, T->offset, NULL);
             T->code = genIR(ASSIGNOP, opn1, opn2, result);
             T->width = 4;
             break;
         case CHAR:
             T->type = CHAR;
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset); //为浮点常量生成一个临时变量
-            opn1.kind = CHAR;
             opn1.const_char = T->type_char;
-            result.kind = ID;
+            opn_init(&opn1, FLOAT, FLOAT, 0, LEV, 0, NULL);
             strcpy(result.id, T->place->alias);
-            result.offset = T->offset;
-            result.level = LEV;
-            result.type = T->type;
+            opn_init(&result, ID, T->type, 0, LEV, T->offset, NULL);
             T->code = genIR(ASSIGNOP, opn1, opn2, result);
             T->width = 1;
             break;
@@ -547,15 +530,10 @@ void Exp(struct node *T) {
                 T->type = T->ptr[0]->type;  // TODO: 类型转换
                 T->width = T->ptr[1]->width;
                 T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
-                opn1.kind = ID;
-                opn1.level = LEV;
                 strcpy(opn1.id, T->ptr[1]->place->alias); //右值一定是个变量或临时变量
-                opn1.offset = T->ptr[1]->place->offset;
-                result.kind = ID;
-                result.level = LEV;
+                opn_init(&opn1, ID, T->ptr[1]->place->type, 0, T->ptr[1]->place->level, T->ptr[1]->place->offset, NULL);
                 strcpy(result.id, T->ptr[0]->place->alias);
-                result.offset = T->ptr[0]->place->offset;
-                result.type = T->type;
+                opn_init(&result, ID, T->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
                 T->code = merge(2, T->code, genIR(ASSIGNOP, opn1, opn2, result));
             }
             break;
@@ -576,22 +554,12 @@ void Exp(struct node *T) {
                 else
                     T->type = CHAR;
                 T->place = T->ptr[0]->place;
-                opn1.kind = ID;
-                opn1.level = LEV;
                 strcpy(opn1.id, T->ptr[0]->place->alias);
-                opn1.type = T->ptr[0]->type;
-                opn1.offset = T->ptr[0]->place->offset;
-                opn2.kind = ID;
-                opn2.level = LEV;
+                opn_init(&opn1, ID, T->ptr[0]->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
                 strcpy(opn2.id, T->ptr[1]->place->alias);
-                opn2.type = T->ptr[1]->type;
-                opn2.offset = T->ptr[1]->place->offset;
-                result.kind = ID;
-                result.level = LEV;
+                opn_init(&opn2, ID, T->ptr[1]->type, 0, T->ptr[1]->place->level, T->ptr[1]->place->offset, NULL);
                 strcpy(result.id, T->place->alias);
-                result.type = T->type;
-                result.offset = T->place->offset;
-                result.type = T->type;
+                opn_init(&result, ID, T->type, 0, T->place->level, T->place->offset, NULL);
                 T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(resolve_aluop(T->type_id[0]), opn1, opn2, result));
                 T->width = T->ptr[0]->width + T->ptr[1]->width;
             }
@@ -605,24 +573,14 @@ void Exp(struct node *T) {
             T->ptr[1]->offset = T->offset + T->ptr[0]->width;
             Exp(T->ptr[1]);
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width + T->ptr[1]->width);
-            opn1.kind = ID;
-            opn1.level = LEV;
             strcpy(opn1.id, T->ptr[0]->place->alias);
-            opn1.type = T->ptr[0]->type;
-            opn1.offset = T->ptr[0]->place->offset;
-            opn2.kind = ID;
-            opn2.level = LEV;
+            opn_init(&opn1, ID, T->ptr[0]->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
             strcpy(opn2.id, T->ptr[1]->place->alias);
-            opn2.type = T->ptr[1]->type;
-            opn2.offset = T->ptr[1]->place->offset;
-            result.kind = ID;
-            result.level = LEV;
+            opn_init(&opn2, ID, T->ptr[1]->type, 0, T->ptr[1]->place->level, T->ptr[1]->place->offset, NULL);
             strcpy(result.id, T->place->alias);
-            result.type = T->type;
-            result.offset = T->place->offset;
-            result.cmp_type = str_to_op(T->type_id, 0);    // 存放运算符enum
+            opn_init(&result, ID, T->type, str_to_op(T->type_id, 0), T->place->level, T->place->offset, NULL);
             T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(T->kind, opn1, opn2, result));
-            T->width = T->ptr[0]->width + T->ptr[1]->width + (T->type == INT ? 4 : 8);
+            T->width = T->ptr[0]->width + T->ptr[1]->width + resolve_size(T->type);
             break;
         case PLUS:
         case MINUS:
@@ -637,27 +595,18 @@ void Exp(struct node *T) {
             if (T->ptr[0]->type == FLOAT || T->ptr[1]->type == FLOAT)
                 T->type = FLOAT, T->width = T->ptr[0]->width + T->ptr[1]->width + 4;
             else if (T->ptr[0]->type == INT || T->ptr[1]->type == INT)
-                T->type = INT, T->width = T->ptr[0]->width + T->ptr[1]->width + 2;
+                T->type = INT, T->width = T->ptr[0]->width + T->ptr[1]->width + 4;
             else
                 T->type = CHAR, T->width = T->ptr[0]->width + T->ptr[1]->width + 1;
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width + T->ptr[1]->width);
-            opn1.kind = ID;
-            opn1.level = LEV;
             strcpy(opn1.id, T->ptr[0]->place->alias);
-            opn1.type = T->ptr[0]->type;
-            opn1.offset = T->ptr[0]->place->offset;
-            opn2.kind = ID;
-            opn2.level = LEV;
+            opn_init(&opn1, ID, T->ptr[0]->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
             strcpy(opn2.id, T->ptr[1]->place->alias);
-            opn2.type = T->ptr[1]->type;
-            opn2.offset = T->ptr[1]->place->offset;
-            result.kind = ID;
-            result.level = LEV;
+            opn_init(&opn2, ID, T->ptr[1]->type, 0, T->ptr[1]->place->level, T->ptr[1]->place->offset, NULL);
             strcpy(result.id, T->place->alias);
-            result.type = T->type;
-            result.offset = T->place->offset;
+            opn_init(&result, ID, T->type, 0, T->place->level, T->place->offset, NULL);
             T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(T->kind, opn1, opn2, result));
-            T->width = T->ptr[0]->width + T->ptr[1]->width + (T->type == INT ? 4 : 8);
+            // T->width = T->ptr[0]->width + T->ptr[1]->width + (T->type == INT ? 4 : 8);
             break;
         case INC:
         case DEC:
@@ -671,14 +620,9 @@ void Exp(struct node *T) {
                 //下面的类型属性计算，没有考虑错误处理情况
                 T->width = T->ptr[0]->width;
                 T->type = T->ptr[0]->type;
-                opn1.kind = ID;
-                opn1.level = LEV;
                 strcpy(opn1.id, T->ptr[0]->place->alias);
-                opn1.type = T->ptr[0]->type;
-                opn1.offset = T->ptr[0]->place->offset;
-                result.kind = ID;
-                result.level = LEV;
-                result.type = T->type;
+                opn_init(&opn1, ID, T->ptr[0]->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
+                opn_init(&result, ID, T->type, 0, LEV, 0, NULL);
                 if (strncmp(T->type_id, "post", 4) == 0) {
                     T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset);
                     strcpy(result.id, T->place->alias);
@@ -687,17 +631,16 @@ void Exp(struct node *T) {
                     T->width += 4;
                 } else
                     T->place = T->ptr[0]->place;
-                opn2.kind = T->type;
                 if (T->type == INT)
                     opn2.const_int = 1;
                 else if (T->type == FLOAT)
                     opn2.const_float = 1.0;
                 else
                     opn2.const_char = 1;
-                opn2.type = T->type;
-                opn2.offset = T->ptr[0]->place->offset;
+                opn_init(&opn2, T->type, T->type, 0, LEV, 0, NULL);
                 strcpy(result.id, T->ptr[0]->place->alias);
                 result.offset = T->ptr[0]->place->offset;
+                result.level = T->ptr[0]->place->level;
                 T->code = merge(2, T->code, genIR(T->type_id[5] == '+' ? PLUS : MINUS, opn1, opn2, result));
             }
             break;
@@ -708,16 +651,10 @@ void Exp(struct node *T) {
             T->type = T->ptr[0]->type;
             T->width = T->ptr[0]->width + (T->type == INT ? 4 : 8);
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width);
-            opn1.kind = ID;
-            opn1.level = LEV;
             strcpy(opn1.id, T->ptr[0]->place->alias);
-            opn1.type = T->ptr[0]->type;
-            opn1.offset = T->ptr[0]->place->offset;
-            result.kind = ID;
-            result.level = LEV;
+            opn_init(&opn1, ID, T->ptr[0]->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
             strcpy(result.id, T->place->alias);
-            result.type = T->type;
-            result.offset = T->place->offset;
+            opn_init(&result, ID, T->type, 0, T->place->level, T->place->offset, NULL);
             T->code = merge(2, T->ptr[0]->code, genIR(T->kind, opn1, opn2, result));
             break;
         case FUNC_CALL: //根据T->type_id查出函数的定义，如果语言中增加了实验教材的read，write需要单独处理一下
@@ -749,29 +686,22 @@ void Exp(struct node *T) {
             //处理参数列表的中间代码
             T0 = T->ptr[0];
             while (T0) {
-                result.kind = ID;
                 strcpy(result.id, T0->ptr[0]->place->alias);
-                result.offset = T0->ptr[0]->place->offset;
-                result.type = T0->ptr[0]->place->type;
+                opn_init(&result, ID, T0->ptr[0]->place->type, 0, T0->ptr[0]->place->level, T0->ptr[0]->place->offset, NULL);
                 T->code = merge(2, T->code, genIR(ARG, opn1, opn2, result));
                 T0 = T0->ptr[1];
             }
-            opn1.kind = ID;
-            opn1.level = LEV;
             strcpy(opn1.id, T->type_id); //保存函数名
-            // opn1.offset = symbol->offset; //这里offset用以保存函数定义入口,在目标代码生成时，能获取相应信息
-            opn1.func_symbol = symbol;
+            opn_init(&opn1, ID, T->type, 0, symbol->level, symbol->offset, symbol);
             if (T->type != VOID) {
                 T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->width - width);
-                result.kind = ID;
                 strcpy(result.id, T->place->alias);
-                result.type = T->place->type;
-                result.offset = T->place->offset;
+                opn_init(&result, ID, T->place->type, 0, T->place->level, T->place->offset, NULL);
             } else {
                 result.kind = ID;
                 strcpy(result.id, "");
+                result.level = LEV;
             }
-            result.level = LEV;
             T->code = merge(2, T->code, genIR(CALL, opn1, opn2, result)); //生成函数调用中间代码
             break;
         case ARGS:      //此处仅处理各实参表达式的求值的代码序列，不生成ARG的实参系列
@@ -884,7 +814,7 @@ void semantic_Analysis(struct node *T) {
                 semantic_error(T->ptr[1]->pos, T->ptr[1]->type_id, "参数名重复定义");
             else T->ptr[1]->place = symbol;
             T->num = 1;     //参数个数计算的初始值
-            T->width = T->ptr[0]->type == INT ? 4 : 8; //参数宽度
+            T->width = T->ptr[0]->type == INT ? 4 : 8; //参数宽度 TODO:
             result.kind = ID;
             strcpy(result.id, symbol->alias);
             result.offset = T->offset;
@@ -969,8 +899,9 @@ void semantic_Analysis(struct node *T) {
             T->width = T->ptr[0]->width;
             T->ptr[1]->offset = T->offset + T->width;
             semantic_Analysis(T->ptr[1]);
-            if (T->width < T->ptr[1]->width)
-                T->width = T->ptr[1]->width;
+            // if (T->width < T->ptr[1]->width)
+            //     T->width = T->ptr[1]->width;
+            T->width += T->ptr[1]->width;
             T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
             break;  //控制语句都还没有处理offset和width属性
         case IF_THEN_ELSE:

@@ -1,6 +1,8 @@
 #include "../include/def.h"
 #include "../include/util.h"
 
+#define ADDRBASE(level) (level == 0 ? "$s0" : "$sp")
+
 typedef struct list {
     struct codenode* h;
     struct list* next;
@@ -42,11 +44,11 @@ char get_size_flag(int size) {
     return '\0';
 }
 
-void assign(FILE* fp, struct codenode* h, char* base_addr_reg) {
+void assign(FILE* fp, struct codenode* h) {
     if (h->opn1.kind == ID) {
-        fprintf(fp, "  lw $t1, %d(%s)\n", h->opn1.offset, base_addr_reg);
+        fprintf(fp, "  lw $t1, %d(%s)\n", h->opn1.offset, ADDRBASE(h->opn1.level));
         fprintf(fp, "  move $t3, $t1\n");
-        fprintf(fp, "  sw $t3, %d(%s)\n", h->result.offset, base_addr_reg);
+        fprintf(fp, "  sw $t3, %d(%s)\n", h->result.offset, ADDRBASE(h->result.level));
     } else {
         if (h->opn1.kind == FLOAT)
             fprintf(fp, "  li $t3, %f\n", h->opn1.const_float);
@@ -55,37 +57,32 @@ void assign(FILE* fp, struct codenode* h, char* base_addr_reg) {
         else
             fprintf(fp, "  li $t3, %d\n", h->opn1.const_char);
         int width = resolve_size(h->result.type);
-        fprintf(fp, "  s%c $t3, %d(%s)\n", get_size_flag(width), h->result.offset, base_addr_reg);
+        fprintf(fp, "  s%c $t3, %d(%s)\n", get_size_flag(width), h->result.offset, ADDRBASE(h->result.level));
     }
 }
 
 void branch_prefix(FILE* fp, struct codenode* h) {
-    fprintf(fp, "  l%c $t1, %d($sp)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset);
-    fprintf(fp, "  l%c $t2, %d($sp)\n", get_size_flag(resolve_size(h->opn2.type)), h->opn2.offset);
+    fprintf(fp, "  l%c $t1, %d(%s)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset, ADDRBASE(h->opn1.level));
+    fprintf(fp, "  l%c $t2, %d(%s)\n", get_size_flag(resolve_size(h->opn2.type)), h->opn2.offset, ADDRBASE(h->opn2.level));
 }
 
 void bin_op(FILE* fp, struct codenode* h, char* instruction) {
-    fprintf(fp, "  l%c $t1, %d($sp)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset);
-    fprintf(fp, "  l%c $t2, %d($sp)\n", get_size_flag(resolve_size(h->opn2.type)), h->opn2.offset);
+    fprintf(fp, "  l%c $t1, %d(%s)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset, ADDRBASE(h->opn1.level));
+    fprintf(fp, "  l%c $t2, %d(%s)\n", get_size_flag(resolve_size(h->opn2.type)), h->opn2.offset, ADDRBASE(h->opn2.level));
     fprintf(fp, "  %s\n", instruction);
-    fprintf(fp, "  s%c $t3, %d($sp)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset);
+    fprintf(fp, "  s%c $t3, %d(%s)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset, ADDRBASE(h->result.level));
 }
 
 void bin_inst_op(FILE* fp, struct codenode* h, char* instruction) {
-    fprintf(fp, "  l%c $t1, %d($sp)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset);
+    fprintf(fp, "  l%c $t1, %d(%s)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset, ADDRBASE(h->opn1.level));
     fprintf(fp, "  %s $t3, $t1, %d\n", instruction, h->opn2.const_int);
-    fprintf(fp, "  s%c $t3, %d($sp)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset);
+    fprintf(fp, "  s%c $t3, %d(%s)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset, ADDRBASE(h->result.level));
 }
 
 void single_op(FILE* fp, struct codenode* h, char* instruction) {
-    fprintf(fp, "  l%c $t1, %d($sp)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset);
+    fprintf(fp, "  l%c $t1, %d(%s)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset, ADDRBASE(h->opn1.level));
     fprintf(fp, "  %s\n", instruction);
-    fprintf(fp, "  s%c $t3, %d($sp)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset);
-}
-
-void insert_stack(FILE* fp, char* reg, int offset) {
-    fprintf(fp, "  addi $sp, $sp, -4\n");
-    fprintf(fp, "  sw %s, -%d($sp)\n", reg, offset);
+    fprintf(fp, "  s%c $t3, %d(%s)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset, ADDRBASE(h->result.level));
 }
 
 void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
@@ -93,7 +90,7 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
     fprintf(fp, "main:\n");
     fprintf(fp, "  li $s0, 0\n");
     // global variables init
-    fprintf(fp, "# global variabls init\n");
+    fprintf(fp, "# global variables init\n");
     for (symbol_t* symbol = symbol_table; symbol != NULL; symbol = symbol->hh.next) {
         if (symbol->level == 0 && symbol->flag == 'V') {
             int width = resolve_size(symbol->type);
@@ -105,7 +102,7 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
     }
     do {
         if (h->result.level == 0 && h->op == ASSIGNOP)      // 全局变量初始化
-            assign(fp, h, "$s0");
+            assign(fp, h);
         else
             break;
         h = h->next;
@@ -114,6 +111,10 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
     fprintf(fp, "# main function wrapper\n");
     symbol_t* main_func;
     HASH_FIND_STR(symbol_table, "main", main_func);
+    if (main_func == NULL) {
+        printf("need main function!\n");
+        exit(-1);
+    }
     fprintf(fp, "  addi $sp, $sp, -%d\n", main_func->paramnum * 4 + main_func->offset);
     fprintf(fp, "  jal _main\n");
     fprintf(fp, "  addi $sp, $sp, %d\n", main_func->paramnum * 4 + main_func->offset);
@@ -125,7 +126,7 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
     do {
         switch (h->op) {
         case ASSIGNOP:
-            assign(fp, h, "$sp");
+            assign(fp, h);
             break;
         case PLUS:
             if (h->opn2.kind == ID)
@@ -134,7 +135,10 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
                 bin_inst_op(fp, h, "addi");
             break;
         case MINUS:
-            bin_op(fp, h, "sub $t3, $t1, $t2");
+            if (h->opn2.kind == ID)
+                bin_op(fp, h, "sub $t3, $t1, $t2");
+            else
+                bin_inst_op(fp, h, "subi");
             break;
         case STAR:
             bin_op(fp, h, "mul $t3, $t1, $t2");
@@ -200,8 +204,6 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
             fprintf(fp, "  beq $t1, $t2, %s\n", h->result.id);
             break;
         case ARG:
-            // fprintf(fp, "l%c $t3, %d($sp)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset);
-            // insert_stack(fp, "$t3", );
             if (param_list == NULL)
                 param_list = new_param_list(h);
             else
@@ -241,7 +243,7 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
                 break;
             }
         case RETURN:
-            fprintf(fp, "  l%c $v0, %d($sp)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset);
+            fprintf(fp, "  l%c $v0, %d(%s)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset, ADDRBASE(h->result.level));
             fprintf(fp, "  jr $ra\n");
             break;
         case CALL: {
@@ -261,7 +263,7 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
             param_list = NULL;
             if (strlen(h->result.id) > 0) {
                 fprintf(fp, "  move $t3, $v0\n");
-                fprintf(fp, "  s%c $t3, %d($sp)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset);
+                fprintf(fp, "  s%c $t3, %d(%s)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset, ADDRBASE(h->result.level));
             }
             break;
         }
