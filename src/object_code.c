@@ -113,14 +113,16 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
     HASH_FIND_STR(symbol_table, "main", main_func);
     if (main_func == NULL) {
         printf("need main function!\n");
-        exit(-1);
+        fprintf(fp, "  li $v0, 10\n");
+        fprintf(fp, "  syscall\n");
+    } else {
+        fprintf(fp, "  addi $sp, $sp, -%d\n", main_func->paramnum * 4 + main_func->offset);
+        fprintf(fp, "  jal _main\n");
+        fprintf(fp, "  addi $sp, $sp, %d\n", main_func->paramnum * 4 + main_func->offset);
+        fprintf(fp, "  move $a0, $v0\n");
+        fprintf(fp, "  li $v0, 17\n");
+        fprintf(fp, "  syscall\n");
     }
-    fprintf(fp, "  addi $sp, $sp, -%d\n", main_func->paramnum * 4 + main_func->offset);
-    fprintf(fp, "  jal _main\n");
-    fprintf(fp, "  addi $sp, $sp, %d\n", main_func->paramnum * 4 + main_func->offset);
-    fprintf(fp, "  move $a0, $v0\n");
-    fprintf(fp, "  li $v0, 17\n");
-    fprintf(fp, "  syscall\n");
     // code
     fprintf(fp, "# code\n");
     do {

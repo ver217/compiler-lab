@@ -292,7 +292,6 @@ symbol_t* fill_Temp(char *name, int level, int type, char flag, int offset) {
 
 
 int LEV = 0;    //层号
-int func_size;  //1个函数的活动记录大小
 
 void ext_var_list(struct node *T) { //处理变量列表
     int num = 1;
@@ -822,8 +821,6 @@ void semantic_Analysis(struct node *T) {
             break;
         case COMP_STM:
             LEV++;
-            //设置层号加1，并且保存该层局部变量在符号表中的起始位置在symbol_scope_TX
-            // symbol_scope_TX.TX[symbol_scope_TX.top++] = symbolTable.index;
             scope_stack.symbol_tables[++scope_stack.idx] = NULL;
             T->width = 0;
             T->code = NULL;
@@ -834,16 +831,8 @@ void semantic_Analysis(struct node *T) {
                 T->width += T->ptr[0]->width;
                 T->code = T->ptr[0]->code;
             }
-            // if (T->ptr[1]) {
-            //     T->ptr[1]->offset = T->offset + T->width;
-            //     strcpy(T->ptr[1]->Snext, T->Snext); //S.next属性向下传递
-            //     semantic_Analysis(T->ptr[1]);       //处理复合语句的语句序列
-            //     T->width += T->ptr[1]->width;
-            //     T->code = merge(2, T->code, T->ptr[1]->code);
-            // }
             prn_symbol();       //c在退出一个符合语句前显示的符号表
             LEV--;    //出复合语句，层号减1
-            // symbolTable.index = symbol_scope_TX.TX[--symbol_scope_TX.top]; //删除该作用域中的符号
             scope_stack.idx--;
             break;
         case COMP_LIST:
@@ -898,8 +887,6 @@ void semantic_Analysis(struct node *T) {
             T->width = T->ptr[0]->width;
             T->ptr[1]->offset = T->offset + T->width;
             semantic_Analysis(T->ptr[1]);
-            // if (T->width < T->ptr[1]->width)
-            //     T->width = T->ptr[1]->width;
             T->width += T->ptr[1]->width;
             T->code = merge(2, T->ptr[0]->code, T->ptr[1]->code);
             break;  //控制语句都还没有处理offset和width属性
@@ -914,10 +901,8 @@ void semantic_Analysis(struct node *T) {
             semantic_Analysis(T->ptr[1]);
             T->width += T->ptr[1]->width;
             T->ptr[2]->offset = T->offset + T->width;
-            // if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
             strcpy(T->ptr[2]->Snext, T->Snext);
             semantic_Analysis(T->ptr[2]);
-            // if (T->width < T->ptr[2]->width) T->width = T->ptr[2]->width;
             T->width += T->ptr[2]->width;
             T->code = merge(5, T->ptr[0]->code, T->ptr[1]->code, \
                             genGoto(T->Snext), genLabel(T->ptr[0]->Bfalse), T->ptr[2]->code);
@@ -932,7 +917,6 @@ void semantic_Analysis(struct node *T) {
             strcpy(T->ptr[1]->Snext, newLabel());
             semantic_Analysis(T->ptr[1]);      //循环体
             T->width += T->ptr[1]->width;
-            // if (T->width < T->ptr[1]->width) T->width = T->ptr[1]->width;
             T->code = merge(4, genLabel(T->ptr[1]->Snext), T->ptr[0]->code, \
                             T->ptr[1]->code, genGoto(T->ptr[1]->Snext));
             break;
@@ -1005,14 +989,6 @@ void semantic_Analysis(struct node *T) {
 }
 
 void semantic_Analysis0(struct node *T) {
-    // symbolTable.index = 0;
-    // fillSymbolTable("read", "", 0, INT, 'F', 4);
-    // symbolTable.symbols[0].paramnum = 0; //read的形参个数
-    // fillSymbolTable("write", "", 0, INT, 'F', 4);
-    // symbolTable.symbols[2].paramnum = 1;
-    // fillSymbolTable("x", "", 1, INT, 'P', 12);
-    // symbol_scope_TX.TX[0] = 0; //外部变量在符号表中的起始序号为0
-    // symbol_scope_TX.top = 1;
     scope_stack.idx = 0;
     scope_stack.symbol_tables[0] = NULL;
     T->offset = 0;            //外部变量在数据区的偏移量
@@ -1020,8 +996,8 @@ void semantic_Analysis0(struct node *T) {
     prn_symbol();
     FILE* ir_fp = fopen("output/out.tac", "w");
     FILE* asm_fp = fopen("output/out.asm", "w");
-    prnIR(T->code, stdout);
-    objectCode(T->code, scope_stack.symbol_tables[0], stdout);
+    // prnIR(T->code, stdout);
+    // objectCode(T->code, scope_stack.symbol_tables[0], stdout);
     prnIR(T->code, ir_fp);
     objectCode(T->code, scope_stack.symbol_tables[0], asm_fp);
     fclose(ir_fp);
