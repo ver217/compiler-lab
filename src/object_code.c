@@ -71,6 +71,12 @@ void bin_op(FILE* fp, struct codenode* h, char* instruction) {
     fprintf(fp, "  s%c $t3, %d($sp)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset);
 }
 
+void bin_inst_op(FILE* fp, struct codenode* h, char* instruction) {
+    fprintf(fp, "  l%c $t1, %d($sp)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset);
+    fprintf(fp, "  %s $t3, $t1, %d\n", instruction, h->opn2.const_int);
+    fprintf(fp, "  s%c $t3, %d($sp)\n", get_size_flag(resolve_size(h->result.type)), h->result.offset);
+}
+
 void single_op(FILE* fp, struct codenode* h, char* instruction) {
     fprintf(fp, "  l%c $t1, %d($sp)\n", get_size_flag(resolve_size(h->opn1.type)), h->opn1.offset);
     fprintf(fp, "  %s\n", instruction);
@@ -84,27 +90,33 @@ void insert_stack(FILE* fp, char* reg, int offset) {
 
 void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
     struct codenode *h = head;
+    fprintf(fp, "main:\n");
+    fprintf(fp, "  li $s0, 0\n");
     // global variables init
     fprintf(fp, "# global variabls init\n");
     for (symbol_t* symbol = symbol_table; symbol != NULL; symbol = symbol->hh.next) {
         if (symbol->level == 0 && symbol->flag == 'V') {
             int width = resolve_size(symbol->type);
             if (width == 1) {
-                fprintf(fp, "  sb $0, %d($0)\n", symbol->offset); // 静态数据区起始地址为0
+                fprintf(fp, "  sb $0, %d($s0)\n", symbol->offset); // 静态数据区起始地址为$s0
             } else
-                fprintf(fp, "  sw $0, %d($0)\n", symbol->offset);
+                fprintf(fp, "  sw $0, %d($s0)\n", symbol->offset);
         }
     }
     do {
         if (h->result.level == 0 && h->op == ASSIGNOP)      // 全局变量初始化
-            assign(fp, h, "$0");
+            assign(fp, h, "$s0");
         else
             break;
         h = h->next;
     } while (h != head);
     // main wrap
     fprintf(fp, "# main function wrapper\n");
-    fprintf(fp, "  jal main\n");
+    symbol_t* main_func;
+    HASH_FIND_STR(symbol_table, "main", main_func);
+    fprintf(fp, "  addi $sp, $sp, -%d\n", main_func->paramnum * 4 + main_func->offset);
+    fprintf(fp, "  jal _main\n");
+    fprintf(fp, "  addi $sp, $sp, %d\n", main_func->paramnum * 4 + main_func->offset);
     fprintf(fp, "  move $a0, $v0\n");
     fprintf(fp, "  li $v0, 17\n");
     fprintf(fp, "  syscall\n");
@@ -116,7 +128,10 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
             assign(fp, h, "$sp");
             break;
         case PLUS:
-            bin_op(fp, h, "add $t3, $t1, $t2");
+            if (h->opn2.kind == ID)
+                bin_op(fp, h, "add $t3, $t1, $t2");
+            else
+                bin_inst_op(fp, h, "addi");
             break;
         case MINUS:
             bin_op(fp, h, "sub $t3, $t1, $t2");
@@ -128,6 +143,8 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
             bin_op(fp, h, "mul $t3, $t1, $t2\ndiv $t1, $t2\nmflo $t3");
             break;
         case FUNCTION:
+            fprintf(fp, "_%s:\n", h->result.id);
+            break;
         case LABEL:
             fprintf(fp, "%s:\n", h->result.id);
             break;
@@ -228,16 +245,18 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
             fprintf(fp, "  jr $ra\n");
             break;
         case CALL: {
-            fprintf(fp, "  move $s0, $sp\n");
-            fprintf(fp, "  addi $sp, $sp, -%d\n", h->opn1.func_symbol->paramnum * 4 + h->opn1.func_symbol->offset); // 为形参和局部变量开辟栈空间
+            fprintf(fp, "  move $s1, $sp\n");
+            fprintf(fp, "  addi $sp, $sp, -%d\n", (h->opn1.func_symbol->paramnum + 1) * 4 + h->opn1.func_symbol->offset); // 为形参和局部变量开辟栈空间
             int i;
             list_t* l;
-            for (l = param_list, i = 0; i < h->opn1.func_symbol->paramnum; i++, l = l->next) {
-                fprintf(fp, "  l%c $t3, %d($s0)\n", get_size_flag(resolve_size(l->h->result.type)), l->h->result.offset);
+            for (l = param_list, i = 1; i < h->opn1.func_symbol->paramnum + 1; i++, l = l->next) {
+                fprintf(fp, "  l%c $t3, %d($s1)\n", get_size_flag(resolve_size(l->h->result.type)), l->h->result.offset);
                 fprintf(fp, "  sw $t3, %d($sp)\n", i * 4);
             }
-            fprintf(fp, "  jal %s\n", h->opn1.id);
-            fprintf(fp, "  addi $sp, $sp, %d\n", h->opn1.func_symbol->paramnum * 4 + h->opn1.func_symbol->offset);
+            fprintf(fp, "  sw $ra, 0($sp)\n");
+            fprintf(fp, "  jal _%s\n", h->opn1.id);
+            fprintf(fp, "  lw $ra, 0($sp)\n");
+            fprintf(fp, "  addi $sp, $sp, %d\n", (h->opn1.func_symbol->paramnum + 1) * 4 + h->opn1.func_symbol->offset);
             delete_param_list(param_list);
             param_list = NULL;
             if (strlen(h->result.id) > 0) {

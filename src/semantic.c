@@ -95,7 +95,7 @@ struct codenode *merge(int num, ...) {
 }
 
 //输出中间代码
-void prnIR(struct codenode *head) {
+void prnIR(struct codenode *head, FILE* fp) {
     if (error)
         return;
     char opnstr1[32], opnstr2[32], resultstr[32];
@@ -120,109 +120,109 @@ void prnIR(struct codenode *head) {
         sprintf(resultstr, "%s", h->result.id);
         switch (h->op) {
         case ASSIGNOP:
-            printf("  %s = %s\n", resultstr, opnstr1);
+            fprintf(fp, "  %s = %s\n", resultstr, opnstr1);
             break;
         case PLUS:
         case MINUS:
         case STAR:
         case DIV:
-            printf("  %s = %s %c %s\n", resultstr, opnstr1, \
-                   h->op == PLUS ? '+' : h->op == MINUS ? '-' : h->op == STAR ? '*' : '\\', opnstr2);
+            fprintf(fp, "  %s = %s %c %s\n", resultstr, opnstr1, \
+                    h->op == PLUS ? '+' : h->op == MINUS ? '-' : h->op == STAR ? '*' : '\\', opnstr2);
             break;
         case FUNCTION:
-            printf("\nfunction %s :\n", h->result.id);
+            fprintf(fp, "\nfunction %s :\n", h->result.id);
             break;
         case PARAM:
-            printf("  param %s\n", h->result.id);
+            fprintf(fp, "  param %s\n", h->result.id);
             break;
         case LABEL:
-            printf("%s:\n", h->result.id);
+            fprintf(fp, "%s:\n", h->result.id);
             break;
         case GOTO:
-            printf("  goto %s\n", h->result.id);
+            fprintf(fp, "  goto %s\n", h->result.id);
             break;
         case JLE:
-            printf("  if %s <= %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  if %s <= %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JL:
-            printf("  if %s < %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  if %s < %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JGE:
-            printf("  if %s >= %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  if %s >= %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JG:
-            printf("  if %s > %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  if %s > %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JE:
-            printf("  if %s == %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  if %s == %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JNE:
-            printf("  if %s != %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  if %s != %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JLEF:
-            printf("  ifFalse %s <= %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  ifFalse %s <= %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JLF:
-            printf("  ifFalse %s < %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  ifFalse %s < %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JGEF:
-            printf("  ifFalse %s >= %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  ifFalse %s >= %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JGF:
-            printf("  ifFalse %s > %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  ifFalse %s > %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JEF:
-            printf("  ifFalse %s == %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  ifFalse %s == %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case JNEF:
-            printf("  ifFalse %s != %s goto %s\n", opnstr1, opnstr2, resultstr);
+            fprintf(fp, "  ifFalse %s != %s goto %s\n", opnstr1, opnstr2, resultstr);
             break;
         case ARG:
-            printf("  arg %s\n", h->result.id);
+            fprintf(fp, "  arg %s\n", h->result.id);
             break;
         case CALL:
             if (strlen(resultstr) > 0)
-                printf("  %s = call %s\n", resultstr, opnstr1);
+                fprintf(fp, "  %s = call %s\n", resultstr, opnstr1);
             else
-                printf("  call %s\n", opnstr1);
+                fprintf(fp, "  call %s\n", opnstr1);
             break;
         case RETURN:
             if (h->result.kind)
-                printf("  return %s\n", resultstr);
+                fprintf(fp, "  return %s\n", resultstr);
             else
-                printf("  return\n");
+                fprintf(fp, "  return\n");
             break;
         case NOT:
-            printf("  %s = !%s\n", resultstr, opnstr1);
+            fprintf(fp, "  %s = !%s\n", resultstr, opnstr1);
             break;
         case UMINUS:
-            printf("  %s = -%s\n", resultstr, opnstr1);
+            fprintf(fp, "  %s = -%s\n", resultstr, opnstr1);
             break;
         case AND:
-            printf("  %s = %s && %s\n", resultstr, opnstr1, opnstr2);
+            fprintf(fp, "  %s = %s && %s\n", resultstr, opnstr1, opnstr2);
             break;
         case OR:
-            printf("  %s = %s || %s\n", resultstr, opnstr1, opnstr2);
+            fprintf(fp, "  %s = %s || %s\n", resultstr, opnstr1, opnstr2);
             break;
         case CMP:
             switch (h->result.cmp_type) {
             case JLE:
-                printf("  %s = %s <= %s\n", resultstr, opnstr1, opnstr2);
+                fprintf(fp, "  %s = %s <= %s\n", resultstr, opnstr1, opnstr2);
                 break;
             case JL:
-                printf("  %s = %s < %s\n", resultstr, opnstr1, opnstr2);
+                fprintf(fp, "  %s = %s < %s\n", resultstr, opnstr1, opnstr2);
                 break;
             case JGE:
-                printf("  %s = %s >= %s\n", resultstr, opnstr1, opnstr2);
+                fprintf(fp, "  %s = %s >= %s\n", resultstr, opnstr1, opnstr2);
                 break;
             case JG:
-                printf("  %s = %s > %s\n", resultstr, opnstr1, opnstr2);
+                fprintf(fp, "  %s = %s > %s\n", resultstr, opnstr1, opnstr2);
                 break;
             case JE:
-                printf("  %s = %s == %s\n", resultstr, opnstr1, opnstr2);
+                fprintf(fp, "  %s = %s == %s\n", resultstr, opnstr1, opnstr2);
                 break;
             case JNE:
-                printf("  %s = %s != %s\n", resultstr, opnstr1, opnstr2);
+                fprintf(fp, "  %s = %s != %s\n", resultstr, opnstr1, opnstr2);
                 break;
             }
         }
@@ -680,7 +680,7 @@ void Exp(struct node *T) {
                 result.level = LEV;
                 result.type = T->type;
                 if (strncmp(T->type_id, "post", 4) == 0) {
-                    T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset);  // TODO: width
+                    T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset);
                     strcpy(result.id, T->place->alias);
                     result.offset = T->place->offset;
                     T->code = merge(2, T->ptr[0]->code, genIR(ASSIGNOP, opn1, opn2, result));
@@ -863,7 +863,7 @@ void semantic_Analysis(struct node *T) {
                 T->code = merge(2, T->code, T->ptr[0]->code); //连接函数名和参数代码序列
             } else symbol->paramnum = 0, T->width = 0;
             break;
-        case PARAM_LIST:    //处理函数形式参数列表 TODO: check
+        case PARAM_LIST:    //处理函数形式参数列表
             T->ptr[0]->offset = T->offset;
             semantic_Analysis(T->ptr[0]);
             if (T->ptr[1]) {
@@ -878,7 +878,7 @@ void semantic_Analysis(struct node *T) {
                 T->code = T->ptr[0]->code;
             }
             break;
-        case PARAM_DEC:    // TODO: check
+        case PARAM_DEC:
             symbol = fillSymbolTable(T->ptr[1]->type_id, newAlias(), 1, T->ptr[0]->type, 'P', T->offset);
             if (symbol == NULL)
                 semantic_error(T->ptr[1]->pos, T->ptr[1]->type_id, "参数名重复定义");
@@ -1088,6 +1088,12 @@ void semantic_Analysis0(struct node *T) {
     T->offset = 0;            //外部变量在数据区的偏移量
     semantic_Analysis(T);
     prn_symbol();
-    prnIR(T->code);
+    FILE* ir_fp = fopen("output/out.tac", "w");
+    FILE* asm_fp = fopen("output/out.asm", "w");
+    prnIR(T->code, stdout);
     objectCode(T->code, scope_stack.symbol_tables[0], stdout);
+    prnIR(T->code, ir_fp);
+    objectCode(T->code, scope_stack.symbol_tables[0], asm_fp);
+    fclose(ir_fp);
+    fclose(asm_fp);
 }

@@ -46,7 +46,7 @@ enum node_kind  {
 };
 #define MAXLENGTH   1000    //定义符号表的大小
 // #define DX 3*sizeof(int)          //活动记录控制信息需要的单元数
-#define DX 0
+#define DX 4
 
 typedef struct {  //这里只列出了一个符号表项的部分属性，没考虑属性间的互斥
     char name[33];     //变量或函数名
