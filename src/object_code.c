@@ -116,6 +116,10 @@ void objectCode(struct codenode *head, symbol_t* symbol_table, FILE* fp) {
         fprintf(fp, "  li $v0, 10\n");
         fprintf(fp, "  syscall\n");
     } else {
+        if (main_func->type != INT) {
+            printf("main函数的返回类型必须是int\n");
+            exit(-1);
+        }
         fprintf(fp, "  addi $sp, $sp, -%d\n", main_func->paramnum * 4 + main_func->offset);
         fprintf(fp, "  jal _main\n");
         fprintf(fp, "  addi $sp, $sp, %d\n", main_func->paramnum * 4 + main_func->offset);

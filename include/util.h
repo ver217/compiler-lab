@@ -2,7 +2,7 @@
 #include "../output/parser.tab.h"
 
 #define typeof(TYPE) \
-(TYPE == INT ? "int" : TYPE == FLOAT ? "float" : TYPE == CHAR ? "char" : "null")
+(TYPE == INT ? "int" : TYPE == FLOAT ? "float" : TYPE == CHAR ? "char" : TYPE == VOID ? "void" : "null")
 
 int resolve_type(char* str);
 
