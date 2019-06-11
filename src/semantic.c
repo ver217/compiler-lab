@@ -606,7 +606,6 @@ void Exp(struct node *T) {
             strcpy(result.id, T->place->alias);
             opn_init(&result, ID, T->type, 0, T->place->level, T->place->offset, NULL);
             T->code = merge(3, T->ptr[0]->code, T->ptr[1]->code, genIR(T->kind, opn1, opn2, result));
-            // T->width = T->ptr[0]->width + T->ptr[1]->width + (T->type == INT ? 4 : 8);
             break;
         case INC:
         case DEC:
@@ -649,7 +648,7 @@ void Exp(struct node *T) {
             T->ptr[0]->offset = T->offset;
             Exp(T->ptr[0]);
             T->type = T->ptr[0]->type;
-            T->width = T->ptr[0]->width + (T->type == INT ? 4 : 8);
+            T->width = T->ptr[0]->width + resolve_size(T->type);
             T->place = fill_Temp(newTemp(), LEV, T->type, 'T', T->offset + T->ptr[0]->width);
             strcpy(opn1.id, T->ptr[0]->place->alias);
             opn_init(&opn1, ID, T->ptr[0]->type, 0, T->ptr[0]->place->level, T->ptr[0]->place->offset, NULL);
@@ -672,7 +671,7 @@ void Exp(struct node *T) {
                 break;
             }
             T->type = symbol->type;
-            width = T->type == INT ? 4 : 8; //存放函数返回值的单数字节数
+            width = resolve_size(T->type); //存放函数返回值的单数字节数
             if (T->ptr[0]) {
                 T->ptr[0]->offset = T->offset;
                 Exp(T->ptr[0]);       //处理所有实参表达式求值，及类型
@@ -814,7 +813,7 @@ void semantic_Analysis(struct node *T) {
                 semantic_error(T->ptr[1]->pos, T->ptr[1]->type_id, "参数名重复定义");
             else T->ptr[1]->place = symbol;
             T->num = 1;     //参数个数计算的初始值
-            T->width = T->ptr[0]->type == INT ? 4 : 8; //参数宽度 TODO:
+            T->width = resolve_size(T->ptr[0]->type); //参数宽度
             result.kind = ID;
             strcpy(result.id, symbol->alias);
             result.offset = T->offset;
