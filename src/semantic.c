@@ -328,9 +328,9 @@ void ext_var_list(struct node *T) { //处理变量列表
     }
 }
 
-int  match_param(symbol_t* symbol, struct node *T) {
+int  match_param(symbol_t* symbol, struct node *T, int pos) {
     int num = symbol->paramnum;
-    int type1, type2, pos = -1;
+    int type1, type2;
     if (num == 0 && T == NULL) return 1;
     for (symbol_t* s = symbol->hh.next; s != NULL, num > 0; s = s->hh.next, num--) {
         if (!T) {
@@ -680,7 +680,7 @@ void Exp(struct node *T) {
                 T->width = width;
                 T->code = NULL;
             }
-            match_param(symbol, T->ptr[0]);  //处理所以参数的匹配
+            match_param(symbol, T->ptr[0], T->pos);  //处理所以参数的匹配
             //处理参数列表的中间代码
             T0 = T->ptr[0];
             while (T0) {
@@ -998,8 +998,10 @@ void semantic_Analysis0(struct node *T) {
     FILE* asm_fp = fopen("output/out.asm", "w");
     // prnIR(T->code, stdout);
     // objectCode(T->code, scope_stack.symbol_tables[0], stdout);
-    prnIR(T->code, ir_fp);
-    objectCode(T->code, scope_stack.symbol_tables[0], asm_fp);
+    if (!error) {
+        prnIR(T->code, ir_fp);
+        objectCode(T->code, scope_stack.symbol_tables[0], asm_fp);
+    }
     fclose(ir_fp);
     fclose(asm_fp);
 }
